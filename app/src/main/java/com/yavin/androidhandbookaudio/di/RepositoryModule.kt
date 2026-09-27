@@ -1,7 +1,9 @@
 package com.yavin.androidhandbookaudio.di
 
 import com.yavin.androidhandbookaudio.data.repository.RemoteCatalogRepository
+import com.yavin.androidhandbookaudio.data.repository.DataStorePlaybackPreferencesRepository
 import com.yavin.androidhandbookaudio.domain.repository.CatalogRepository
+import com.yavin.androidhandbookaudio.domain.repository.PlaybackPreferencesRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -14,4 +16,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindCatalogRepository(implementation: RemoteCatalogRepository): CatalogRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPlaybackPreferencesRepository(
+        implementation: DataStorePlaybackPreferencesRepository,
+    ): PlaybackPreferencesRepository
 }

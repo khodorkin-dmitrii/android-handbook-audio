@@ -32,13 +32,13 @@ https://khodorkin-dmitrii.github.io/android-dev-handbook/assets/audio/catalog.js
 ## 🗺 Roadmap
 
 - [x] Project foundation
-- [ ] Remote catalog and playlist loading
-- [ ] Playlist screen
-- [ ] Track list
-- [ ] Streaming playback
-- [ ] Full player screen
-- [ ] Background playback / MediaSession
-- [ ] Playback polish and persistence
+- [x] Remote catalog and playlist loading
+- [x] Playlist screen
+- [x] Track list
+- [x] Streaming playback
+- [x] Full player screen
+- [x] Background playback / MediaSession
+- [x] Playback polish and persistence
 - [ ] Language switching
 - [ ] Static transcripts
 - [ ] Timed synchronized transcripts

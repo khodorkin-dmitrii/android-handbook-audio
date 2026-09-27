@@ -63,7 +63,11 @@ class TrackListViewModel @Inject constructor(
     fun playOrPause(trackId: String) {
         val loadedPlaylist = playlist ?: return
         if (playbackState.currentTrackId == trackId) {
-            if (playbackState.isPlaying) playbackController.pause() else playbackController.play()
+            when {
+                playbackState.isPlaying -> playbackController.pause()
+                playbackState.error != null -> playbackController.retry()
+                else -> playbackController.play()
+            }
             return
         }
         playbackController.playPlaylist(

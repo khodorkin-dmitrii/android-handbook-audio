@@ -27,6 +27,8 @@ class PlayerViewModel @Inject constructor(
         val active = uiState.value as? PlayerUiState.Active ?: return
         if (active.status == PlayerStatus.PLAYING) {
             playbackController.pause()
+        } else if (active.status == PlayerStatus.ERROR) {
+            playbackController.retry()
         } else {
             playbackController.play()
         }

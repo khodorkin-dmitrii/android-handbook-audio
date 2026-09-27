@@ -2,6 +2,7 @@ package com.yavin.androidhandbookaudio.playback
 
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import com.yavin.androidhandbookaudio.domain.model.PlaybackBookmark
 import com.yavin.androidhandbookaudio.domain.model.MediaRendition
 import com.yavin.androidhandbookaudio.domain.model.Track
 
@@ -40,6 +41,14 @@ fun PlaybackQueueItem.toMediaItem(): MediaItem = MediaItem.Builder()
     .setMediaMetadata(
         MediaMetadata.Builder()
             .setTitle(title)
+            .setSubtitle(language.uppercase())
             .build(),
     )
     .build()
+
+fun PlaybackBookmark.toMediaItem(): MediaItem = PlaybackQueueItem(
+    trackId = trackId,
+    title = title,
+    language = language,
+    audioUrl = audioUrl,
+).toMediaItem()

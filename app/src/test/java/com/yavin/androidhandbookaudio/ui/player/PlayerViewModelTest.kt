@@ -59,6 +59,23 @@ class PlayerViewModelTest {
         viewModel.setPlaybackSpeed(1.3f)
         assertEquals(1.25f, controller.lastSpeed)
     }
+
+    @Test
+    fun `play action retries after playback error`() = runTest(dispatcher) {
+        val controller = RecordingPlaybackController(
+            PlaybackState(
+                currentTrackId = "track",
+                currentTitle = "Track",
+                error = "Network error",
+            ),
+        )
+        val viewModel = PlayerViewModel(controller)
+        advanceUntilIdle()
+
+        viewModel.playOrPause()
+
+        assertEquals(1, controller.retryCalls)
+    }
 }
 
 private class RecordingPlaybackController(initialState: PlaybackState) : PlaybackController {
@@ -67,6 +84,7 @@ private class RecordingPlaybackController(initialState: PlaybackState) : Playbac
     var lastSeekPosition: Long? = null
     var previousCalls = 0
     var nextCalls = 0
+    var retryCalls = 0
     var lastSpeed: Float? = null
 
     override fun playPlaylist(
@@ -77,6 +95,9 @@ private class RecordingPlaybackController(initialState: PlaybackState) : Playbac
 
     override fun play() = Unit
     override fun pause() = Unit
+    override fun retry() {
+        retryCalls++
+    }
     override fun seekTo(positionMs: Long) {
         lastSeekPosition = positionMs
     }

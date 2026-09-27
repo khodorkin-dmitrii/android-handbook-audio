@@ -31,6 +31,8 @@ interface PlaybackController {
 
     fun pause()
 
+    fun retry()
+
     fun seekTo(positionMs: Long)
 
     fun next()

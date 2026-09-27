@@ -152,6 +152,7 @@ private class FakePlaybackController : PlaybackController {
 
     override fun play() = Unit
     override fun pause() = Unit
+    override fun retry() = Unit
     override fun seekTo(positionMs: Long) = Unit
     override fun next() = Unit
     override fun previous() = Unit

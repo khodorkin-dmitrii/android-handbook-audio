@@ -163,7 +163,13 @@ private fun ActivePlayer(
             TextButton(onClick = onPrevious, enabled = state.hasPrevious) { Text("Previous") }
             TextButton(onClick = onSeekBackward) { Text("-10s") }
             Button(onClick = onPlayOrPause) {
-                Text(if (state.status == PlayerStatus.PLAYING) "Pause" else "Play")
+                Text(
+                    when (state.status) {
+                        PlayerStatus.PLAYING -> "Pause"
+                        PlayerStatus.ERROR -> "Retry"
+                        else -> "Play"
+                    },
+                )
             }
             TextButton(onClick = onSeekForward) { Text("+10s") }
             TextButton(onClick = onNext, enabled = state.hasNext) { Text("Next") }
