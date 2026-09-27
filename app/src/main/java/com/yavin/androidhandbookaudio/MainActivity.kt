@@ -4,45 +4,31 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.activity.viewModels
+import com.yavin.androidhandbookaudio.navigation.AndroidHandbookAudioNavHost
 import com.yavin.androidhandbookaudio.ui.theme.AndroidHandbookAudioTheme
+import com.yavin.androidhandbookaudio.ui.playlists.PlaylistsViewModel
+import com.yavin.androidhandbookaudio.ui.player.PlayerViewModel
+import com.yavin.androidhandbookaudio.ui.tracks.TrackListViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    private val playlistsViewModel: PlaylistsViewModel by viewModels()
+    private val trackListViewModel: TrackListViewModel by viewModels()
+    private val playerViewModel: PlayerViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             AndroidHandbookAudioTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    AndroidHandbookAudioApp(
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                AndroidHandbookAudioNavHost(
+                    playlistsViewModel = playlistsViewModel,
+                    trackListViewModel = trackListViewModel,
+                    playerViewModel = playerViewModel,
+                )
             }
         }
-    }
-}
-
-@Composable
-fun AndroidHandbookAudioApp(modifier: Modifier = Modifier) {
-    Text(
-        text = "Android Handbook Audio",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun AndroidHandbookAudioAppPreview() {
-    AndroidHandbookAudioTheme {
-        AndroidHandbookAudioApp()
     }
 }
