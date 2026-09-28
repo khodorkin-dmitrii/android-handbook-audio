@@ -1,14 +1,19 @@
 package com.yavin.androidhandbookaudio.ui.player
 
 import com.yavin.androidhandbookaudio.domain.model.Track
+import com.yavin.androidhandbookaudio.domain.model.TimedTranscript
+import com.yavin.androidhandbookaudio.domain.model.TranscriptSegment
+import com.yavin.androidhandbookaudio.domain.repository.TranscriptRepository
 import com.yavin.androidhandbookaudio.playback.PlaybackController
 import com.yavin.androidhandbookaudio.playback.PlaybackState
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -44,7 +49,7 @@ class PlayerViewModelTest {
                 hasNext = true,
             ),
         )
-        val viewModel = PlayerViewModel(controller)
+        val viewModel = PlayerViewModel(controller, FakeTranscriptRepository())
         advanceUntilIdle()
 
         assertEquals(PlayerStatus.PLAYING, (viewModel.uiState.value as PlayerUiState.Active).status)
@@ -58,6 +63,8 @@ class PlayerViewModelTest {
         assertEquals(1, controller.nextCalls)
         viewModel.setPlaybackSpeed(1.3f)
         assertEquals(1.25f, controller.lastSpeed)
+        viewModel.seekToTranscriptSegment(4_000)
+        assertEquals(4_000L, controller.lastSeekPosition)
     }
 
     @Test
@@ -69,13 +76,89 @@ class PlayerViewModelTest {
                 error = "Network error",
             ),
         )
-        val viewModel = PlayerViewModel(controller)
+        val viewModel = PlayerViewModel(controller, FakeTranscriptRepository())
         advanceUntilIdle()
 
         viewModel.playOrPause()
 
         assertEquals(1, controller.retryCalls)
     }
+
+    @Test
+    fun `loads transcript and maps active segment without blocking playback`() = runTest(dispatcher) {
+        val response = CompletableDeferred<TimedTranscript>()
+        val controller = RecordingPlaybackController(playbackState("one.srt", positionMs = 1_500))
+        val viewModel = PlayerViewModel(
+            controller,
+            FakeTranscriptRepository { _, _ -> response.await() },
+        )
+        runCurrent()
+
+        assertEquals(
+            TranscriptUiState.Loading,
+            (viewModel.uiState.value as PlayerUiState.Active).transcript,
+        )
+
+        response.complete(transcript("First"))
+        advanceUntilIdle()
+
+        val transcriptState = (viewModel.uiState.value as PlayerUiState.Active).transcript
+            as TranscriptUiState.Content
+        assertEquals("First", transcriptState.segments.single().text)
+        assertEquals(0, transcriptState.activeSegmentIndex)
+    }
+
+    @Test
+    fun `transcript failure is non blocking`() = runTest(dispatcher) {
+        val controller = RecordingPlaybackController(playbackState("broken.srt"))
+        val viewModel = PlayerViewModel(
+            controller,
+            FakeTranscriptRepository { _, _ -> error("Network failure") },
+        )
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value as PlayerUiState.Active
+        assertEquals(PlayerStatus.PAUSED, state.status)
+        assertEquals(TranscriptUiState.Error(), state.transcript)
+    }
+
+    @Test
+    fun `rendition change ignores stale transcript result`() = runTest(dispatcher) {
+        val firstResponse = CompletableDeferred<TimedTranscript>()
+        val secondResponse = CompletableDeferred<TimedTranscript>()
+        val controller = RecordingPlaybackController(playbackState("en.srt"))
+        val viewModel = PlayerViewModel(
+            controller,
+            FakeTranscriptRepository { url, _ ->
+                if (url.endsWith("en.srt")) firstResponse.await() else secondResponse.await()
+            },
+        )
+        runCurrent()
+
+        controller.update(playbackState("ru.srt").copy(currentLanguage = "ru"))
+        runCurrent()
+        secondResponse.complete(transcript("Russian"))
+        advanceUntilIdle()
+        firstResponse.complete(transcript("Stale English"))
+        advanceUntilIdle()
+
+        val transcriptState = (viewModel.uiState.value as PlayerUiState.Active).transcript
+            as TranscriptUiState.Content
+        assertEquals("Russian", transcriptState.segments.single().text)
+    }
+
+    private fun playbackState(url: String, positionMs: Long = 0) = PlaybackState(
+        currentTrackId = "track",
+        currentTitle = "Track",
+        currentLanguage = "en",
+        timedTranscriptUrl = "https://example.com/$url",
+        timedTranscriptFormat = "srt",
+        positionMs = positionMs,
+    )
+
+    private fun transcript(text: String) = TimedTranscript(
+        listOf(TranscriptSegment(startMs = 1_000, endMs = 2_000, text = text)),
+    )
 }
 
 private class RecordingPlaybackController(initialState: PlaybackState) : PlaybackController {
@@ -86,6 +169,10 @@ private class RecordingPlaybackController(initialState: PlaybackState) : Playbac
     var nextCalls = 0
     var retryCalls = 0
     var lastSpeed: Float? = null
+
+    fun update(state: PlaybackState) {
+        mutableState.value = state
+    }
 
     override fun playPlaylist(
         tracks: List<Track>,
@@ -113,4 +200,13 @@ private class RecordingPlaybackController(initialState: PlaybackState) : Playbac
     override fun setPlaybackSpeed(speed: Float) {
         lastSpeed = speed
     }
+}
+
+private class FakeTranscriptRepository(
+    private val loader: suspend (String, String) -> TimedTranscript = { _, _ ->
+        TimedTranscript(emptyList())
+    },
+) : TranscriptRepository {
+    override suspend fun getTimedTranscript(url: String, format: String): TimedTranscript =
+        loader(url, format)
 }

@@ -22,4 +22,5 @@ data class MediaRendition(
     val audioUrl: String,
     val transcriptUrl: String?,
     val timedTranscriptUrl: String?,
+    val timedTranscriptFormat: String? = null,
 )

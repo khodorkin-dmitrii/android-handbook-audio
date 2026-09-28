@@ -1,5 +1,7 @@
 package com.yavin.androidhandbookaudio.ui.player
 
+import com.yavin.androidhandbookaudio.domain.model.TimedTranscript
+import com.yavin.androidhandbookaudio.domain.model.TranscriptSegment
 import com.yavin.androidhandbookaudio.playback.PlaybackState
 
 sealed interface PlayerUiState {
@@ -17,8 +19,24 @@ sealed interface PlayerUiState {
         val hasPrevious: Boolean,
         val hasNext: Boolean,
         val errorMessage: String?,
+        val transcript: TranscriptUiState = TranscriptUiState.Unavailable,
     ) : PlayerUiState
 }
+
+sealed interface TranscriptUiState {
+    data object Unavailable : TranscriptUiState
+    data object Loading : TranscriptUiState
+    data class Content(
+        val segments: List<TranscriptSegment>,
+        val activeSegmentIndex: Int?,
+    ) : TranscriptUiState
+    data class Error(val message: String = "Transcript unavailable") : TranscriptUiState
+}
+
+data class TimedTranscriptSource(
+    val url: String,
+    val format: String,
+)
 
 enum class PlayerStatus {
     BUFFERING,
@@ -38,7 +56,9 @@ data class MiniPlayerUiState(
 
 val PlaybackSpeedOptions = listOf(0.75f, 1f, 1.25f, 1.5f, 2f)
 
-fun PlaybackState.toPlayerUiState(): PlayerUiState {
+fun PlaybackState.toPlayerUiState(
+    transcript: TranscriptUiState = TranscriptUiState.Unavailable,
+): PlayerUiState {
     val trackId = currentTrackId ?: return PlayerUiState.NoActiveMedia(error)
     val status = when {
         error != null -> PlayerStatus.ERROR
@@ -58,7 +78,44 @@ fun PlaybackState.toPlayerUiState(): PlayerUiState {
         hasPrevious = hasPrevious,
         hasNext = hasNext,
         errorMessage = error,
+        transcript = transcript,
     )
+}
+
+fun PlaybackState.toTimedTranscriptSourceOrNull(): TimedTranscriptSource? {
+    val url = timedTranscriptUrl?.trim()?.takeIf(String::isNotEmpty) ?: return null
+    val format = timedTranscriptFormat?.trim()?.lowercase()?.takeIf { it == "srt" } ?: return null
+    return TimedTranscriptSource(url = url, format = format)
+}
+
+fun TimedTranscript.toUiState(positionMs: Long): TranscriptUiState = if (segments.isEmpty()) {
+    TranscriptUiState.Unavailable
+} else {
+    TranscriptUiState.Content(
+        segments = segments,
+        activeSegmentIndex = findActiveTranscriptSegmentIndex(segments, positionMs),
+    )
+}
+
+fun findActiveTranscriptSegmentIndex(
+    segments: List<TranscriptSegment>,
+    positionMs: Long,
+): Int? {
+    var low = 0
+    var high = segments.lastIndex
+    var candidate = -1
+    while (low <= high) {
+        val middle = (low + high).ushr(1)
+        if (segments[middle].startMs <= positionMs) {
+            candidate = middle
+            low = middle + 1
+        } else {
+            high = middle - 1
+        }
+    }
+    return candidate.takeIf { index ->
+        index >= 0 && positionMs < segments[index].endMs
+    }
 }
 
 fun PlayerUiState.toMiniPlayerUiState(): MiniPlayerUiState? {

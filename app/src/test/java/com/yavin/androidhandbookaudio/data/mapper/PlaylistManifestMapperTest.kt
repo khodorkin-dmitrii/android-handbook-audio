@@ -28,7 +28,10 @@ class PlaylistManifestMapperTest {
         val english = playlist.tracks.first().renditions.getValue("en")
         assertEquals("https://example.com/en.mp3", english.audioUrl)
         assertEquals("https://example.com/transcript.json", english.transcriptUrl)
-        assertEquals(null, english.timedTranscriptUrl)
+        assertEquals("https://example.com/subtitles.srt", english.timedTranscriptUrl)
+        assertEquals("srt", english.timedTranscriptFormat)
+        assertEquals(null, playlist.tracks.first().renditions.getValue("ru").timedTranscriptUrl)
+        assertEquals(null, playlist.tracks.first().renditions.getValue("ru").timedTranscriptFormat)
     }
 
     @Test
@@ -65,6 +68,8 @@ class PlaylistManifestMapperTest {
             "en" to MediaRenditionDto(
                 audioUrl = "https://example.com/en.mp3",
                 transcriptUrl = "https://example.com/transcript.json",
+                timedTranscriptUrl = "https://example.com/subtitles.srt",
+                timedTranscriptFormat = "SRT",
             ),
             "ru" to MediaRenditionDto(audioUrl = "https://example.com/ru.mp3"),
         ),

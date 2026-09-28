@@ -38,6 +38,12 @@ class DataStorePlaybackPreferencesRepository @Inject constructor(
             preferences[PlaybackPreferenceKeys.AUDIO_URL] = bookmark.audioUrl
             preferences[PlaybackPreferenceKeys.POSITION_MS] = bookmark.positionMs.coerceAtLeast(0)
             preferences[PlaybackPreferenceKeys.PLAYBACK_SPEED] = bookmark.playbackSpeed
+            bookmark.timedTranscriptUrl?.let { value ->
+                preferences[PlaybackPreferenceKeys.TIMED_TRANSCRIPT_URL] = value
+            } ?: preferences.remove(PlaybackPreferenceKeys.TIMED_TRANSCRIPT_URL)
+            bookmark.timedTranscriptFormat?.let { value ->
+                preferences[PlaybackPreferenceKeys.TIMED_TRANSCRIPT_FORMAT] = value
+            } ?: preferences.remove(PlaybackPreferenceKeys.TIMED_TRANSCRIPT_FORMAT)
         }
     }
 }
@@ -49,6 +55,8 @@ internal object PlaybackPreferenceKeys {
     val AUDIO_URL = stringPreferencesKey("last_audio_url")
     val POSITION_MS = longPreferencesKey("last_position_ms")
     val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
+    val TIMED_TRANSCRIPT_URL = stringPreferencesKey("last_timed_transcript_url")
+    val TIMED_TRANSCRIPT_FORMAT = stringPreferencesKey("last_timed_transcript_format")
 }
 
 internal fun Preferences.toPlaybackBookmark(): PlaybackBookmark? {
@@ -65,6 +73,10 @@ internal fun Preferences.toPlaybackBookmark(): PlaybackBookmark? {
         playbackSpeed = this[PlaybackPreferenceKeys.PLAYBACK_SPEED]
             ?.takeIf { it in MIN_PLAYBACK_SPEED..MAX_PLAYBACK_SPEED }
             ?: DEFAULT_PLAYBACK_SPEED,
+        timedTranscriptUrl = this[PlaybackPreferenceKeys.TIMED_TRANSCRIPT_URL]
+            ?.takeIf(String::isNotBlank),
+        timedTranscriptFormat = this[PlaybackPreferenceKeys.TIMED_TRANSCRIPT_FORMAT]
+            ?.takeIf(String::isNotBlank),
     )
 }
 

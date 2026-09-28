@@ -7,6 +7,8 @@ data class PlaybackState(
     val currentTrackId: String? = null,
     val currentTitle: String? = null,
     val currentLanguage: String? = null,
+    val timedTranscriptUrl: String? = null,
+    val timedTranscriptFormat: String? = null,
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,
     val positionMs: Long = 0,

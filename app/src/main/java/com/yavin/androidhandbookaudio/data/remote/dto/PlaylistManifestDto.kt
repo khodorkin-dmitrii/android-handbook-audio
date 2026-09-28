@@ -24,4 +24,5 @@ data class MediaRenditionDto(
     val audioUrl: String? = null,
     val transcriptUrl: String? = null,
     val timedTranscriptUrl: String? = null,
+    val timedTranscriptFormat: String? = null,
 )

@@ -36,6 +36,8 @@ class TrackMediaItemMapperTest {
         assertEquals("Track", queueItem.title)
         assertEquals("en", queueItem.language)
         assertEquals("https://example.com/en.mp3", queueItem.audioUrl)
+        assertEquals("https://example.com/en.srt", queueItem.timedTranscriptUrl)
+        assertEquals("srt", queueItem.timedTranscriptFormat)
     }
 
     private fun Track.renditionFor(language: String?) = selectRendition(language)
@@ -46,13 +48,20 @@ class TrackMediaItemMapperTest {
             audioUrl = "https://example.com/$language.mp3",
             transcriptUrl = null,
             timedTranscriptUrl = null,
+            timedTranscriptFormat = null,
         )
 
         val track = Track(
             id = "track",
             order = 1,
             titles = mapOf("en" to "Track", "ru" to "Трек"),
-            renditions = mapOf("en" to rendition("en"), "ru" to rendition("ru")),
+            renditions = mapOf(
+                "en" to rendition("en").copy(
+                    timedTranscriptUrl = "https://example.com/en.srt",
+                    timedTranscriptFormat = "srt",
+                ),
+                "ru" to rendition("ru"),
+            ),
         )
     }
 }

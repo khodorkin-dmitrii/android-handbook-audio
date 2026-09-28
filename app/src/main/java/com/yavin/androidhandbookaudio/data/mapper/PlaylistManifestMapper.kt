@@ -47,6 +47,7 @@ private fun MediaRenditionDto.toDomain(language: String): MediaRendition? {
         audioUrl = url,
         transcriptUrl = transcriptUrl.normalizedOrNull(),
         timedTranscriptUrl = timedTranscriptUrl.normalizedOrNull(),
+        timedTranscriptFormat = timedTranscriptFormat.normalizedOrNull()?.lowercase(),
     )
 }
 

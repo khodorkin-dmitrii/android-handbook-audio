@@ -215,6 +215,10 @@ class Media3PlaybackController @Inject constructor(
                 ?.toString()
                 ?.lowercase()
                 ?: currentTrackId?.let(languagesByTrackId::get),
+            timedTranscriptUrl = player.currentMediaItem?.mediaMetadata?.extras
+                ?.getString(TIMED_TRANSCRIPT_URL_KEY),
+            timedTranscriptFormat = player.currentMediaItem?.mediaMetadata?.extras
+                ?.getString(TIMED_TRANSCRIPT_FORMAT_KEY),
             isPlaying = player.isPlaying,
             isBuffering = player.playbackState == Player.STATE_BUFFERING,
             positionMs = player.currentPosition.coerceAtLeast(0),
@@ -258,6 +262,10 @@ class Media3PlaybackController @Inject constructor(
             audioUrl = localConfiguration.uri.toString(),
             positionMs = player.currentPosition.coerceAtLeast(0),
             playbackSpeed = player.playbackParameters.speed,
+            timedTranscriptUrl = mediaItem.mediaMetadata.extras
+                ?.getString(TIMED_TRANSCRIPT_URL_KEY),
+            timedTranscriptFormat = mediaItem.mediaMetadata.extras
+                ?.getString(TIMED_TRANSCRIPT_FORMAT_KEY),
         )
         lastPeriodicCheckpointPositionMs = snapshot.positionMs
         val previousPersistenceJob = persistenceJob

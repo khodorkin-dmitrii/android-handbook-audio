@@ -101,6 +101,7 @@ fun AndroidHandbookAudioNavHost(
                         onPrevious = playerViewModel::previous,
                         onNext = playerViewModel::next,
                         onSpeedSelected = playerViewModel::setPlaybackSpeed,
+                        onTranscriptSegmentClick = playerViewModel::seekToTranscriptSegment,
                     )
                 }
             },

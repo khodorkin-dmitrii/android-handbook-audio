@@ -1,6 +1,7 @@
 package com.yavin.androidhandbookaudio.ui.player
 
 import com.yavin.androidhandbookaudio.playback.PlaybackState
+import com.yavin.androidhandbookaudio.domain.model.TranscriptSegment
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -73,5 +74,39 @@ class PlayerUiStateTest {
         assertEquals("1:01:01", formatPlaybackTime(3_661_000))
         assertEquals(1.25f, selectPlaybackSpeed(1.3f))
         assertEquals(2f, selectPlaybackSpeed(3f))
+    }
+
+    @Test
+    fun `maps only supported complete transcript source`() {
+        assertEquals(
+            TimedTranscriptSource("https://example.com/file.srt", "srt"),
+            PlaybackState(
+                timedTranscriptUrl = "https://example.com/file.srt",
+                timedTranscriptFormat = "SRT",
+            ).toTimedTranscriptSourceOrNull(),
+        )
+        assertNull(
+            PlaybackState(
+                timedTranscriptUrl = "https://example.com/file.vtt",
+                timedTranscriptFormat = "vtt",
+            ).toTimedTranscriptSourceOrNull(),
+        )
+        assertNull(PlaybackState(timedTranscriptFormat = "srt").toTimedTranscriptSourceOrNull())
+    }
+
+    @Test
+    fun `finds active segment and returns null outside cues and in gaps`() {
+        val segments = listOf(
+            TranscriptSegment(1_000, 2_000, "One"),
+            TranscriptSegment(3_000, 4_000, "Two"),
+        )
+
+        assertNull(findActiveTranscriptSegmentIndex(segments, 999))
+        assertEquals(0, findActiveTranscriptSegmentIndex(segments, 1_000))
+        assertEquals(0, findActiveTranscriptSegmentIndex(segments, 1_999))
+        assertNull(findActiveTranscriptSegmentIndex(segments, 2_000))
+        assertNull(findActiveTranscriptSegmentIndex(segments, 2_500))
+        assertEquals(1, findActiveTranscriptSegmentIndex(segments, 3_500))
+        assertNull(findActiveTranscriptSegmentIndex(segments, 4_000))
     }
 }

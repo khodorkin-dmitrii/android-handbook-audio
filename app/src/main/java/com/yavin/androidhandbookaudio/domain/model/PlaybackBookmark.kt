@@ -7,4 +7,6 @@ data class PlaybackBookmark(
     val audioUrl: String,
     val positionMs: Long,
     val playbackSpeed: Float,
+    val timedTranscriptUrl: String? = null,
+    val timedTranscriptFormat: String? = null,
 )

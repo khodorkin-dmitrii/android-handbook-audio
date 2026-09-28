@@ -1,5 +1,6 @@
 package com.yavin.androidhandbookaudio.playback
 
+import android.os.Bundle
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import com.yavin.androidhandbookaudio.domain.model.PlaybackBookmark
@@ -11,6 +12,8 @@ data class PlaybackQueueItem(
     val title: String,
     val language: String,
     val audioUrl: String,
+    val timedTranscriptUrl: String? = null,
+    val timedTranscriptFormat: String? = null,
 )
 
 fun Track.selectRendition(preferredLanguage: String? = null): MediaRendition? {
@@ -32,6 +35,8 @@ fun buildPlaybackQueue(
             ?: track.titles.values.first(),
         language = rendition.language,
         audioUrl = rendition.audioUrl,
+        timedTranscriptUrl = rendition.timedTranscriptUrl,
+        timedTranscriptFormat = rendition.timedTranscriptFormat,
     )
 }
 
@@ -42,6 +47,12 @@ fun PlaybackQueueItem.toMediaItem(): MediaItem = MediaItem.Builder()
         MediaMetadata.Builder()
             .setTitle(title)
             .setSubtitle(language.uppercase())
+            .setExtras(
+                Bundle().apply {
+                    timedTranscriptUrl?.let { putString(TIMED_TRANSCRIPT_URL_KEY, it) }
+                    timedTranscriptFormat?.let { putString(TIMED_TRANSCRIPT_FORMAT_KEY, it) }
+                },
+            )
             .build(),
     )
     .build()
@@ -51,4 +62,11 @@ fun PlaybackBookmark.toMediaItem(): MediaItem = PlaybackQueueItem(
     title = title,
     language = language,
     audioUrl = audioUrl,
+    timedTranscriptUrl = timedTranscriptUrl,
+    timedTranscriptFormat = timedTranscriptFormat,
 ).toMediaItem()
+
+internal const val TIMED_TRANSCRIPT_URL_KEY =
+    "com.yavin.androidhandbookaudio.media.TIMED_TRANSCRIPT_URL"
+internal const val TIMED_TRANSCRIPT_FORMAT_KEY =
+    "com.yavin.androidhandbookaudio.media.TIMED_TRANSCRIPT_FORMAT"
