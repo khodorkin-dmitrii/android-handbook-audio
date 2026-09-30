@@ -16,9 +16,14 @@ data class PlaybackQueueItem(
     val timedTranscriptFormat: String? = null,
 )
 
-fun Track.selectRendition(preferredLanguage: String? = null): MediaRendition? {
+fun Track.selectRendition(
+    explicitlySelectedLanguage: String? = null,
+    preferredLanguage: String? = null,
+): MediaRendition? {
+    val normalizedExplicit = explicitlySelectedLanguage?.trim()?.lowercase()
     val normalizedPreferred = preferredLanguage?.trim()?.lowercase()
-    return normalizedPreferred?.let(renditions::get)
+    return normalizedExplicit?.let(renditions::get)
+        ?: normalizedPreferred?.let(renditions::get)
         ?: renditions["en"]
         ?: renditions.values.firstOrNull()
 }
@@ -26,17 +31,47 @@ fun Track.selectRendition(preferredLanguage: String? = null): MediaRendition? {
 fun buildPlaybackQueue(
     tracks: List<Track>,
     preferredLanguage: String? = null,
+    selectedTrackId: String? = null,
+    selectedLanguage: String? = null,
 ): List<PlaybackQueueItem> = tracks.sortedBy(Track::order).mapNotNull { track ->
-    val rendition = track.selectRendition(preferredLanguage) ?: return@mapNotNull null
+    val rendition = track.selectRendition(
+        explicitlySelectedLanguage = selectedLanguage.takeIf { track.id == selectedTrackId },
+        preferredLanguage = preferredLanguage,
+    ) ?: return@mapNotNull null
+    track.toPlaybackQueueItem(rendition)
+}
+
+fun Track.toPlaybackQueueItem(rendition: MediaRendition): PlaybackQueueItem =
     PlaybackQueueItem(
-        trackId = track.id,
-        title = track.titles[rendition.language]
-            ?: track.titles["en"]
-            ?: track.titles.values.first(),
+        trackId = id,
+        title = titles[rendition.language]
+            ?: titles["en"]
+            ?: titles.values.first(),
         language = rendition.language,
         audioUrl = rendition.audioUrl,
         timedTranscriptUrl = rendition.timedTranscriptUrl,
         timedTranscriptFormat = rendition.timedTranscriptFormat,
+    )
+
+data class RenditionSwitchPlan(
+    val item: PlaybackQueueItem,
+    val playWhenReady: Boolean,
+    val playbackSpeed: Float,
+)
+
+fun createRenditionSwitchPlan(
+    track: Track,
+    language: String,
+    playWhenReady: Boolean,
+    playbackSpeed: Float,
+): RenditionSwitchPlan? {
+    val rendition = track.selectRendition(explicitlySelectedLanguage = language)
+        ?.takeIf { it.language.equals(language.trim(), ignoreCase = true) }
+        ?: return null
+    return RenditionSwitchPlan(
+        item = track.toPlaybackQueueItem(rendition),
+        playWhenReady = playWhenReady,
+        playbackSpeed = playbackSpeed,
     )
 }
 

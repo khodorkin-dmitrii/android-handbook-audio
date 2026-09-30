@@ -20,6 +20,9 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -33,10 +36,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yavin.androidhandbookaudio.domain.model.TranscriptSegment
+import com.yavin.androidhandbookaudio.domain.model.TranscriptStyleRange
+import com.yavin.androidhandbookaudio.domain.model.TranscriptTextStyle
 import com.yavin.androidhandbookaudio.ui.theme.AndroidHandbookAudioTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,6 +61,7 @@ fun PlayerScreen(
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onSpeedSelected: (Float) -> Unit,
+    onLanguageSelected: (String) -> Unit,
     onTranscriptSegmentClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -82,6 +93,7 @@ fun PlayerScreen(
                 onPrevious = onPrevious,
                 onNext = onNext,
                 onSpeedSelected = onSpeedSelected,
+                onLanguageSelected = onLanguageSelected,
                 onTranscriptSegmentClick = onTranscriptSegmentClick,
                 modifier = Modifier.padding(contentPadding),
             )
@@ -114,6 +126,7 @@ private fun ActivePlayer(
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onSpeedSelected: (Float) -> Unit,
+    onLanguageSelected: (String) -> Unit,
     onTranscriptSegmentClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -144,6 +157,7 @@ private fun ActivePlayer(
                 onPrevious = onPrevious,
                 onNext = onNext,
                 onSpeedSelected = onSpeedSelected,
+                onLanguageSelected = onLanguageSelected,
                 modifier = Modifier.weight(1f),
             )
             HorizontalDivider()
@@ -168,6 +182,7 @@ private fun ActivePlayer(
                 onPrevious = onPrevious,
                 onNext = onNext,
                 onSpeedSelected = onSpeedSelected,
+                onLanguageSelected = onLanguageSelected,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -175,6 +190,7 @@ private fun ActivePlayer(
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun PlayerControls(
     state: PlayerUiState.Active,
     isSeeking: Boolean,
@@ -187,6 +203,7 @@ private fun PlayerControls(
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onSpeedSelected: (Float) -> Unit,
+    onLanguageSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -202,7 +219,7 @@ private fun PlayerControls(
         )
         Text(
             text = listOfNotNull(
-                state.language,
+                state.language?.uppercase(),
                 state.status.displayName(),
                 state.transcript.statusLabel(),
             ).joinToString(" • "),
@@ -211,6 +228,35 @@ private fun PlayerControls(
         )
         state.errorMessage?.let { error ->
             Text(error, color = MaterialTheme.colorScheme.error)
+        }
+
+        when (state.availableLanguages.size) {
+            2 -> SingleChoiceSegmentedButtonRow {
+                state.availableLanguages.forEachIndexed { index, language ->
+                    SegmentedButton(
+                        selected = state.language == language,
+                        onClick = { onLanguageSelected(language) },
+                        shape = SegmentedButtonDefaults.itemShape(
+                            index = index,
+                            count = state.availableLanguages.size,
+                        ),
+                        label = { Text(language.uppercase()) },
+                    )
+                }
+            }
+
+            in 3..Int.MAX_VALUE -> Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                state.availableLanguages.forEach { language ->
+                    FilterChip(
+                        selected = state.language == language,
+                        onClick = { onLanguageSelected(language) },
+                        label = { Text(language.uppercase()) },
+                    )
+                }
+            }
         }
 
         val durationMs = state.durationMs
@@ -299,8 +345,9 @@ private fun TranscriptPanel(
             key = { index, segment -> "${segment.startMs}-$index" },
         ) { index, segment ->
             val isActive = index == state.activeSegmentIndex
+            val styledText = remember(segment) { segment.toAnnotatedString() }
             Text(
-                text = segment.text,
+                text = styledText,
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onSegmentClick(segment.startMs) }
@@ -314,6 +361,22 @@ private fun TranscriptPanel(
                 fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
             )
         }
+    }
+}
+
+internal fun TranscriptSegment.toAnnotatedString(): AnnotatedString = buildAnnotatedString {
+    append(text)
+    styleRanges.forEach { range ->
+        val start = range.start.coerceIn(0, text.length)
+        val endExclusive = range.endExclusive.coerceIn(start, text.length)
+        if (start == endExclusive) return@forEach
+
+        val spanStyle = when (range.style) {
+            TranscriptTextStyle.ITALIC -> SpanStyle(fontStyle = FontStyle.Italic)
+            TranscriptTextStyle.BOLD -> SpanStyle(fontWeight = FontWeight.Bold)
+            TranscriptTextStyle.UNDERLINE -> SpanStyle(textDecoration = TextDecoration.Underline)
+        }
+        addStyle(spanStyle, start, endExclusive)
     }
 }
 
@@ -352,6 +415,7 @@ private fun PlayerControlsPreview() {
                 onPrevious = {},
                 onNext = {},
                 onSpeedSelected = {},
+                onLanguageSelected = {},
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -383,6 +447,7 @@ private fun PlayerControlsLoadingPreview() {
                 onPrevious = {},
                 onNext = {},
                 onSpeedSelected = {},
+                onLanguageSelected = {},
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -413,6 +478,7 @@ private fun PlayerScreenPreview() {
             onPrevious = {},
             onNext = {},
             onSpeedSelected = {},
+            onLanguageSelected = {},
             onTranscriptSegmentClick = {},
         )
     }
@@ -424,7 +490,8 @@ private fun previewPlayerState(
 ) = PlayerUiState.Active(
     trackId = "shorts.libraries-build",
     title = "Libraries & Build",
-    language = "EN",
+    language = "en",
+    availableLanguages = listOf("en", "ru"),
     status = status,
     positionMs = 78_000,
     durationMs = 184_000,
@@ -440,7 +507,14 @@ private val previewTranscriptSegments = listOf(
     TranscriptSegment(
         startMs = 74_000,
         endMs = 77_000,
-        text = "How and where are Android libraries published?",
+        text = previewQuestion,
+        styleRanges = listOf(
+            TranscriptStyleRange(
+                start = 0,
+                endExclusive = previewQuestion.length,
+                style = TranscriptTextStyle.ITALIC,
+            ),
+        ),
     ),
     TranscriptSegment(
         startMs = 77_000,
@@ -453,3 +527,5 @@ private val previewTranscriptSegments = listOf(
         text = "Maven Central, GitHub Packages, Nexus, and Artifactory are common options.",
     ),
 )
+
+private const val previewQuestion = "How and where are Android libraries published?"

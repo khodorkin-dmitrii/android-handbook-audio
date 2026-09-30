@@ -7,6 +7,7 @@ data class PlaybackState(
     val currentTrackId: String? = null,
     val currentTitle: String? = null,
     val currentLanguage: String? = null,
+    val availableLanguages: List<String> = emptyList(),
     val timedTranscriptUrl: String? = null,
     val timedTranscriptFormat: String? = null,
     val isPlaying: Boolean = false,
@@ -20,6 +21,11 @@ data class PlaybackState(
     val error: String? = null,
 )
 
+data class PlaybackRenditionMetadata(
+    val timedTranscriptUrl: String?,
+    val timedTranscriptFormat: String?,
+)
+
 interface PlaybackController {
     val state: StateFlow<PlaybackState>
 
@@ -27,7 +33,14 @@ interface PlaybackController {
         tracks: List<Track>,
         selectedTrackId: String,
         preferredLanguage: String? = null,
+        selectedLanguage: String? = null,
     )
+
+    fun updatePlaylistTracks(tracks: List<Track>)
+
+    fun getCurrentTrackRendition(language: String): PlaybackRenditionMetadata?
+
+    fun switchLanguage(language: String, startPositionMs: Long = 0)
 
     fun play()
 

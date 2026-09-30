@@ -23,12 +23,15 @@ private val Context.playbackPreferencesDataStore by preferencesDataStore(name = 
 class DataStorePlaybackPreferencesRepository @Inject constructor(
     @param:ApplicationContext private val context: Context,
 ) : PlaybackPreferencesRepository {
-    override val bookmark: Flow<PlaybackBookmark?> = context.playbackPreferencesDataStore.data
+    private val preferences = context.playbackPreferencesDataStore.data
         .catch { error ->
             if (error is IOException) emit(androidx.datastore.preferences.core.emptyPreferences())
             else throw error
         }
-        .map(Preferences::toPlaybackBookmark)
+
+    override val bookmark: Flow<PlaybackBookmark?> = preferences.map(Preferences::toPlaybackBookmark)
+
+    override val preferredLanguage: Flow<String?> = preferences.map(Preferences::toPreferredLanguage)
 
     override suspend fun saveBookmark(bookmark: PlaybackBookmark) {
         context.playbackPreferencesDataStore.edit { preferences ->
@@ -46,18 +49,33 @@ class DataStorePlaybackPreferencesRepository @Inject constructor(
             } ?: preferences.remove(PlaybackPreferenceKeys.TIMED_TRANSCRIPT_FORMAT)
         }
     }
+
+    override suspend fun savePreferredLanguage(language: String) {
+        val normalizedLanguage = language.trim().lowercase()
+        if (normalizedLanguage.isEmpty()) return
+        context.playbackPreferencesDataStore.edit { preferences ->
+            preferences[PlaybackPreferenceKeys.PREFERRED_LANGUAGE] = normalizedLanguage
+        }
+    }
 }
 
 internal object PlaybackPreferenceKeys {
     val TRACK_ID = stringPreferencesKey("last_track_id")
     val TITLE = stringPreferencesKey("last_track_title")
     val LANGUAGE = stringPreferencesKey("last_rendition_language")
+    val PREFERRED_LANGUAGE = stringPreferencesKey("preferred_language")
     val AUDIO_URL = stringPreferencesKey("last_audio_url")
     val POSITION_MS = longPreferencesKey("last_position_ms")
     val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
     val TIMED_TRANSCRIPT_URL = stringPreferencesKey("last_timed_transcript_url")
     val TIMED_TRANSCRIPT_FORMAT = stringPreferencesKey("last_timed_transcript_format")
 }
+
+internal fun Preferences.toPreferredLanguage(): String? =
+    this[PlaybackPreferenceKeys.PREFERRED_LANGUAGE]
+        ?.trim()
+        ?.lowercase()
+        ?.takeIf(String::isNotEmpty)
 
 internal fun Preferences.toPlaybackBookmark(): PlaybackBookmark? {
     val trackId = this[PlaybackPreferenceKeys.TRACK_ID]?.takeIf(String::isNotBlank) ?: return null

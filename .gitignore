@@ -45,3 +45,6 @@ google-services.json
 
 # Local Codex instructions
 /AGENTS.md
+
+# Local implementation reports
+/docs/

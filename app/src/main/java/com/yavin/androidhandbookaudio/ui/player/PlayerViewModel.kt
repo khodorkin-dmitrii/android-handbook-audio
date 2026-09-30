@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.yavin.androidhandbookaudio.domain.model.TimedTranscript
 import com.yavin.androidhandbookaudio.domain.repository.TranscriptRepository
 import com.yavin.androidhandbookaudio.playback.PlaybackController
+import com.yavin.androidhandbookaudio.playback.SwitchPlaybackLanguage
 import com.yavin.androidhandbookaudio.playback.clampSeekPosition
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -17,28 +18,34 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     private val playbackController: PlaybackController,
     private val transcriptRepository: TranscriptRepository,
+    private val switchPlaybackLanguage: SwitchPlaybackLanguage,
 ) : ViewModel() {
     private val transcriptLoadState = MutableStateFlow<TranscriptLoadState>(
         TranscriptLoadState.Unavailable,
     )
+    private var languageSwitchJob: Job? = null
 
     val uiState: StateFlow<PlayerUiState> = combine(
         playbackController.state,
         transcriptLoadState,
     ) { playbackState, transcriptState ->
-        val transcriptUiState = when (transcriptState) {
-            TranscriptLoadState.Unavailable -> TranscriptUiState.Unavailable
-            TranscriptLoadState.Loading -> TranscriptUiState.Loading
-            is TranscriptLoadState.Content -> transcriptState.transcript.toUiState(
+        val currentSource = playbackState.toTimedTranscriptSourceOrNull()
+        val transcriptUiState = when {
+            currentSource == null -> TranscriptUiState.Unavailable
+            transcriptState.source != currentSource -> TranscriptUiState.Loading
+            transcriptState is TranscriptLoadState.Loading -> TranscriptUiState.Loading
+            transcriptState is TranscriptLoadState.Content -> transcriptState.transcript.toUiState(
                 playbackState.positionMs,
             )
-            TranscriptLoadState.Error -> TranscriptUiState.Error()
+            transcriptState is TranscriptLoadState.Error -> TranscriptUiState.Error()
+            else -> TranscriptUiState.Unavailable
         }
         playbackState.toPlayerUiState(transcriptUiState)
     }
@@ -58,17 +65,17 @@ class PlayerViewModel @Inject constructor(
                         transcriptLoadState.value = TranscriptLoadState.Unavailable
                         return@collectLatest
                     }
-                    transcriptLoadState.value = TranscriptLoadState.Loading
+                    transcriptLoadState.value = TranscriptLoadState.Loading(source)
                     transcriptLoadState.value = try {
                         val transcript = transcriptRepository.getTimedTranscript(
                             url = source.url,
                             format = source.format,
                         )
-                        TranscriptLoadState.Content(transcript)
+                        TranscriptLoadState.Content(source, transcript)
                     } catch (cancellation: CancellationException) {
                         throw cancellation
                     } catch (_: Exception) {
-                        TranscriptLoadState.Error
+                        TranscriptLoadState.Error(source)
                     }
                 }
         }
@@ -120,14 +127,32 @@ class PlayerViewModel @Inject constructor(
         playbackController.setPlaybackSpeed(selectPlaybackSpeed(speed))
     }
 
+    fun selectLanguage(language: String) {
+        val currentSource = playbackController.state.value.toTimedTranscriptSourceOrNull()
+        val loadedTranscript = (transcriptLoadState.value as? TranscriptLoadState.Content)
+            ?.takeIf { it.source == currentSource }
+            ?.transcript
+        languageSwitchJob?.cancel()
+        languageSwitchJob = viewModelScope.launch {
+            switchPlaybackLanguage(language, loadedTranscript)
+        }
+    }
+
     companion object {
         const val SEEK_INTERVAL_MS = 10_000L
     }
 
     private sealed interface TranscriptLoadState {
-        data object Unavailable : TranscriptLoadState
-        data object Loading : TranscriptLoadState
-        data class Content(val transcript: TimedTranscript) : TranscriptLoadState
-        data object Error : TranscriptLoadState
+        val source: TimedTranscriptSource?
+
+        data object Unavailable : TranscriptLoadState {
+            override val source: TimedTranscriptSource? = null
+        }
+        data class Loading(override val source: TimedTranscriptSource) : TranscriptLoadState
+        data class Content(
+            override val source: TimedTranscriptSource,
+            val transcript: TimedTranscript,
+        ) : TranscriptLoadState
+        data class Error(override val source: TimedTranscriptSource) : TranscriptLoadState
     }
 }

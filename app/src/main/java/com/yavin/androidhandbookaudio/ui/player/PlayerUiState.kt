@@ -11,6 +11,7 @@ sealed interface PlayerUiState {
         val trackId: String,
         val title: String,
         val language: String?,
+        val availableLanguages: List<String>,
         val status: PlayerStatus,
         val positionMs: Long,
         val durationMs: Long?,
@@ -69,7 +70,8 @@ fun PlaybackState.toPlayerUiState(
     return PlayerUiState.Active(
         trackId = trackId,
         title = currentTitle ?: "Unknown track",
-        language = currentLanguage?.uppercase(),
+        language = currentLanguage,
+        availableLanguages = availableLanguages,
         status = status,
         positionMs = positionMs,
         durationMs = durationMs,
@@ -126,7 +128,7 @@ fun PlayerUiState.toMiniPlayerUiState(): MiniPlayerUiState? {
     return MiniPlayerUiState(
         trackId = active.trackId,
         title = active.title,
-        language = active.language,
+        language = active.language?.uppercase(),
         isPlaying = active.status == PlayerStatus.PLAYING,
         isBuffering = active.status == PlayerStatus.BUFFERING,
         progress = progress,

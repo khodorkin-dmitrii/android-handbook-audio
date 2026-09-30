@@ -5,7 +5,9 @@ import com.yavin.androidhandbookaudio.domain.model.TimedTranscript
 import com.yavin.androidhandbookaudio.domain.model.TranscriptSegment
 import com.yavin.androidhandbookaudio.domain.repository.TranscriptRepository
 import com.yavin.androidhandbookaudio.playback.PlaybackController
+import com.yavin.androidhandbookaudio.playback.PlaybackRenditionMetadata
 import com.yavin.androidhandbookaudio.playback.PlaybackState
+import com.yavin.androidhandbookaudio.playback.SwitchPlaybackLanguage
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -42,6 +44,7 @@ class PlayerViewModelTest {
             PlaybackState(
                 currentTrackId = "track",
                 currentTitle = "Track",
+                currentLanguage = "en",
                 isPlaying = true,
                 positionMs = 5_000,
                 durationMs = 12_000,
@@ -49,7 +52,7 @@ class PlayerViewModelTest {
                 hasNext = true,
             ),
         )
-        val viewModel = PlayerViewModel(controller, FakeTranscriptRepository())
+        val viewModel = createViewModel(controller, FakeTranscriptRepository())
         advanceUntilIdle()
 
         assertEquals(PlayerStatus.PLAYING, (viewModel.uiState.value as PlayerUiState.Active).status)
@@ -65,6 +68,9 @@ class PlayerViewModelTest {
         assertEquals(1.25f, controller.lastSpeed)
         viewModel.seekToTranscriptSegment(4_000)
         assertEquals(4_000L, controller.lastSeekPosition)
+        viewModel.selectLanguage("ru")
+        advanceUntilIdle()
+        assertEquals("ru", controller.lastLanguage)
     }
 
     @Test
@@ -76,7 +82,7 @@ class PlayerViewModelTest {
                 error = "Network error",
             ),
         )
-        val viewModel = PlayerViewModel(controller, FakeTranscriptRepository())
+        val viewModel = createViewModel(controller, FakeTranscriptRepository())
         advanceUntilIdle()
 
         viewModel.playOrPause()
@@ -88,7 +94,7 @@ class PlayerViewModelTest {
     fun `loads transcript and maps active segment without blocking playback`() = runTest(dispatcher) {
         val response = CompletableDeferred<TimedTranscript>()
         val controller = RecordingPlaybackController(playbackState("one.srt", positionMs = 1_500))
-        val viewModel = PlayerViewModel(
+        val viewModel = createViewModel(
             controller,
             FakeTranscriptRepository { _, _ -> response.await() },
         )
@@ -111,7 +117,7 @@ class PlayerViewModelTest {
     @Test
     fun `transcript failure is non blocking`() = runTest(dispatcher) {
         val controller = RecordingPlaybackController(playbackState("broken.srt"))
-        val viewModel = PlayerViewModel(
+        val viewModel = createViewModel(
             controller,
             FakeTranscriptRepository { _, _ -> error("Network failure") },
         )
@@ -127,7 +133,7 @@ class PlayerViewModelTest {
         val firstResponse = CompletableDeferred<TimedTranscript>()
         val secondResponse = CompletableDeferred<TimedTranscript>()
         val controller = RecordingPlaybackController(playbackState("en.srt"))
-        val viewModel = PlayerViewModel(
+        val viewModel = createViewModel(
             controller,
             FakeTranscriptRepository { url, _ ->
                 if (url.endsWith("en.srt")) firstResponse.await() else secondResponse.await()
@@ -146,6 +152,45 @@ class PlayerViewModelTest {
             as TranscriptUiState.Content
         assertEquals("Russian", transcriptState.segments.single().text)
     }
+
+    @Test
+    fun `rendition without transcript clears previous transcript immediately`() =
+        runTest(dispatcher) {
+            val controller = RecordingPlaybackController(playbackState("en.srt"))
+            val viewModel = createViewModel(
+                controller,
+                FakeTranscriptRepository { _, _ -> transcript("English") },
+            )
+            advanceUntilIdle()
+            assertEquals(
+                "English",
+                ((viewModel.uiState.value as PlayerUiState.Active).transcript
+                    as TranscriptUiState.Content).segments.single().text,
+            )
+
+            controller.update(
+                playbackState("en.srt").copy(
+                    currentLanguage = "ru",
+                    timedTranscriptUrl = null,
+                    timedTranscriptFormat = null,
+                ),
+            )
+            runCurrent()
+
+            assertEquals(
+                TranscriptUiState.Unavailable,
+                (viewModel.uiState.value as PlayerUiState.Active).transcript,
+            )
+        }
+
+    private fun createViewModel(
+        controller: PlaybackController,
+        transcriptRepository: TranscriptRepository,
+    ) = PlayerViewModel(
+        playbackController = controller,
+        transcriptRepository = transcriptRepository,
+        switchPlaybackLanguage = SwitchPlaybackLanguage(controller, transcriptRepository),
+    )
 
     private fun playbackState(url: String, positionMs: Long = 0) = PlaybackState(
         currentTrackId = "track",
@@ -169,6 +214,7 @@ private class RecordingPlaybackController(initialState: PlaybackState) : Playbac
     var nextCalls = 0
     var retryCalls = 0
     var lastSpeed: Float? = null
+    var lastLanguage: String? = null
 
     fun update(state: PlaybackState) {
         mutableState.value = state
@@ -178,7 +224,19 @@ private class RecordingPlaybackController(initialState: PlaybackState) : Playbac
         tracks: List<Track>,
         selectedTrackId: String,
         preferredLanguage: String?,
+        selectedLanguage: String?,
     ) = Unit
+
+    override fun updatePlaylistTracks(tracks: List<Track>) = Unit
+
+    override fun getCurrentTrackRendition(language: String) = PlaybackRenditionMetadata(
+        timedTranscriptUrl = null,
+        timedTranscriptFormat = null,
+    )
+
+    override fun switchLanguage(language: String, startPositionMs: Long) {
+        lastLanguage = language
+    }
 
     override fun play() = Unit
     override fun pause() = Unit

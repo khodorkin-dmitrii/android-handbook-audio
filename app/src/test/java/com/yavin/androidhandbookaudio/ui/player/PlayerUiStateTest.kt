@@ -14,6 +14,7 @@ class PlayerUiStateTest {
             currentTrackId = "shorts.kotlin",
             currentTitle = "Kotlin",
             currentLanguage = "en",
+            availableLanguages = listOf("en", "ru"),
             isPlaying = true,
             positionMs = 15_000,
             durationMs = 60_000,
@@ -24,7 +25,8 @@ class PlayerUiStateTest {
 
         assertEquals(PlayerStatus.PLAYING, state.status)
         assertEquals("Kotlin", state.title)
-        assertEquals("EN", state.language)
+        assertEquals("en", state.language)
+        assertEquals(listOf("en", "ru"), state.availableLanguages)
         assertEquals(false, state.hasPrevious)
         assertEquals(true, state.hasNext)
         assertEquals(1.25f, state.playbackSpeed)

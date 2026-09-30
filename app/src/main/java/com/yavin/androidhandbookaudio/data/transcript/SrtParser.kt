@@ -2,6 +2,8 @@ package com.yavin.androidhandbookaudio.data.transcript
 
 import com.yavin.androidhandbookaudio.domain.model.TimedTranscript
 import com.yavin.androidhandbookaudio.domain.model.TranscriptSegment
+import com.yavin.androidhandbookaudio.domain.model.TranscriptStyleRange
+import com.yavin.androidhandbookaudio.domain.model.TranscriptTextStyle
 import javax.inject.Inject
 
 class SrtParser @Inject constructor() {
@@ -28,18 +30,77 @@ class SrtParser @Inject constructor() {
         val endMs = timing.groupValues.timestampAt(5) ?: return null
         if (endMs <= startMs) return null
 
-        val text = lines
+        val markup = lines
             .drop(timingIndex + 1)
             .filter(String::isNotBlank)
             .joinToString(" ")
             .trim()
-        if (text.isEmpty()) return null
+        if (markup.isEmpty()) return null
+
+        val parsedText = parseInlineFormatting(markup)
+        if (parsedText.text.isEmpty()) return null
 
         return TranscriptSegment(
             startMs = startMs,
             endMs = endMs,
-            text = text,
+            text = parsedText.text,
+            styleRanges = parsedText.styleRanges,
         )
+    }
+
+    private fun parseInlineFormatting(markup: String): ParsedTranscriptText {
+        val output = StringBuilder()
+        val styleRanges = mutableListOf<TranscriptStyleRange>()
+        val openRanges = TranscriptTextStyle.entries.associateWith { ArrayDeque<Int>() }
+        var sourceIndex = 0
+
+        INLINE_TAG_PATTERN.findAll(markup).forEach { match ->
+            output.append(markup, sourceIndex, match.range.first)
+            sourceIndex = match.range.last + 1
+
+            val style = match.groupValues[2].toTranscriptTextStyle() ?: return@forEach
+            if (match.value.dropLast(1).trimEnd().endsWith('/')) return@forEach
+
+            val starts = openRanges.getValue(style)
+            if (match.groupValues[1].isEmpty()) {
+                starts.addLast(output.length)
+            } else if (starts.isNotEmpty()) {
+                styleRanges.addStyleRange(starts.removeLast(), output.length, style)
+            }
+        }
+        output.append(markup, sourceIndex, markup.length)
+
+        openRanges.forEach { (style, starts) ->
+            while (starts.isNotEmpty()) {
+                styleRanges.addStyleRange(starts.removeLast(), output.length, style)
+            }
+        }
+
+        return ParsedTranscriptText(
+            text = output.toString(),
+            styleRanges = styleRanges.sortedWith(
+                compareBy<TranscriptStyleRange>(TranscriptStyleRange::start)
+                    .thenBy(TranscriptStyleRange::endExclusive)
+                    .thenBy { it.style.ordinal },
+            ),
+        )
+    }
+
+    private fun MutableList<TranscriptStyleRange>.addStyleRange(
+        start: Int,
+        endExclusive: Int,
+        style: TranscriptTextStyle,
+    ) {
+        if (start < endExclusive) {
+            add(TranscriptStyleRange(start, endExclusive, style))
+        }
+    }
+
+    private fun String.toTranscriptTextStyle(): TranscriptTextStyle? = when (lowercase()) {
+        "i" -> TranscriptTextStyle.ITALIC
+        "b" -> TranscriptTextStyle.BOLD
+        "u" -> TranscriptTextStyle.UNDERLINE
+        else -> null
     }
 
     private fun List<String>.timestampAt(offset: Int): Long? {
@@ -52,8 +113,17 @@ class SrtParser @Inject constructor() {
 
     private companion object {
         val BLOCK_SEPARATOR = Regex("\\n\\s*\\n+")
+        val INLINE_TAG_PATTERN = Regex(
+            pattern = """<\s*(/?)\s*([A-Za-z][A-Za-z0-9]*)(?:\s+[^>]*)?\s*/?>""",
+            option = RegexOption.IGNORE_CASE,
+        )
         val TIMING_PATTERN = Regex(
             """(\d+):([0-5]\d):([0-5]\d)[,.](\d{3})\s*-->\s*(\d+):([0-5]\d):([0-5]\d)[,.](\d{3})(?:\s+.*)?""",
         )
     }
+
+    private data class ParsedTranscriptText(
+        val text: String,
+        val styleRanges: List<TranscriptStyleRange>,
+    )
 }

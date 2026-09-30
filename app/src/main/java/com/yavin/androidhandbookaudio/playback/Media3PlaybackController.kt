@@ -42,6 +42,7 @@ class Media3PlaybackController @Inject constructor(
     private var controller: MediaController? = null
     private var pendingPlayback: PendingPlayback? = null
     private var languagesByTrackId: Map<String, String> = emptyMap()
+    private var tracksById: Map<String, Track> = emptyMap()
     private var playbackError: String? = null
     private var restoredBookmark: PlaybackBookmark? = null
     private var isPersistenceLoaded = false
@@ -125,10 +126,17 @@ class Media3PlaybackController @Inject constructor(
         tracks: List<Track>,
         selectedTrackId: String,
         preferredLanguage: String?,
+        selectedLanguage: String?,
     ) {
         hasUserRequestedPlayback = true
+        updatePlaylistTracks(tracks)
         val pending = PendingPlayback(
-            queue = buildPlaybackQueue(tracks, preferredLanguage),
+            queue = buildPlaybackQueue(
+                tracks = tracks,
+                preferredLanguage = preferredLanguage,
+                selectedTrackId = selectedTrackId,
+                selectedLanguage = selectedLanguage,
+            ),
             selectedTrackId = selectedTrackId,
         )
         if (controller == null) {
@@ -136,6 +144,51 @@ class Media3PlaybackController @Inject constructor(
         } else {
             startPlayback(pending)
         }
+    }
+
+    override fun updatePlaylistTracks(tracks: List<Track>) {
+        tracksById = tracksById + tracks.associateBy(Track::id)
+        updateState(controller)
+    }
+
+    override fun getCurrentTrackRendition(language: String): PlaybackRenditionMetadata? {
+        val currentTrackId = controller?.currentMediaItem?.mediaId
+            ?: state.value.currentTrackId
+            ?: return null
+        val rendition = tracksById[currentTrackId]
+            ?.renditions
+            ?.get(language.trim().lowercase())
+            ?: return null
+        return PlaybackRenditionMetadata(
+            timedTranscriptUrl = rendition.timedTranscriptUrl,
+            timedTranscriptFormat = rendition.timedTranscriptFormat,
+        )
+    }
+
+    override fun switchLanguage(language: String, startPositionMs: Long) {
+        val mediaController = controller ?: return
+        val currentTrackId = mediaController.currentMediaItem?.mediaId ?: return
+        val track = tracksById[currentTrackId] ?: return
+        val currentIndex = mediaController.currentMediaItemIndex
+        val plan = createRenditionSwitchPlan(
+            track = track,
+            language = language,
+            playWhenReady = mediaController.playWhenReady,
+            playbackSpeed = mediaController.playbackParameters.speed,
+        ) ?: return
+        if (plan.item.language == _state.value.currentLanguage) return
+
+        checkpointPlayback(mediaController)
+        playbackError = null
+        languagesByTrackId = languagesByTrackId + (currentTrackId to plan.item.language)
+        mediaController.replaceMediaItem(currentIndex, plan.item.toMediaItem())
+        val targetPositionMs = startPositionMs.coerceAtLeast(0)
+        mediaController.seekTo(currentIndex, targetPositionMs)
+        mediaController.setPlaybackSpeed(plan.playbackSpeed)
+        mediaController.prepare()
+        mediaController.playWhenReady = plan.playWhenReady
+        updateState(mediaController)
+        checkpointPlayback(mediaController)
     }
 
     override fun play() {
@@ -215,6 +268,10 @@ class Media3PlaybackController @Inject constructor(
                 ?.toString()
                 ?.lowercase()
                 ?: currentTrackId?.let(languagesByTrackId::get),
+            availableLanguages = currentTrackId
+                ?.let(tracksById::get)
+                ?.availableLanguages
+                .orEmpty(),
             timedTranscriptUrl = player.currentMediaItem?.mediaMetadata?.extras
                 ?.getString(TIMED_TRANSCRIPT_URL_KEY),
             timedTranscriptFormat = player.currentMediaItem?.mediaMetadata?.extras

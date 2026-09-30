@@ -7,13 +7,40 @@ import org.junit.Test
 
 class TrackMediaItemMapperTest {
     @Test
-    fun `selects preferred then English then first rendition`() {
-        assertEquals("ru", track.renditionFor("ru")?.language)
-        assertEquals("en", track.renditionFor("de")?.language)
+    fun `explicit language wins when available`() {
+        assertEquals("ru", track.selectRendition("ru", "en")?.language)
+    }
+
+    @Test
+    fun `unavailable explicit language falls back to preferred language`() {
+        assertEquals("ru", track.selectRendition("de", "ru")?.language)
+    }
+
+    @Test
+    fun `available preferred language is selected`() {
+        assertEquals("ru", track.selectRendition(preferredLanguage = "ru")?.language)
+    }
+
+    @Test
+    fun `unavailable preferred language falls back to English`() {
+        assertEquals("en", track.selectRendition(preferredLanguage = "de")?.language)
+    }
+
+    @Test
+    fun `first rendition is used when explicit preferred and English are unavailable`() {
         assertEquals(
             "fr",
-            track.copy(renditions = mapOf("fr" to rendition("fr"))).renditionFor(null)?.language,
+            track.copy(renditions = mapOf("fr" to rendition("fr")))
+                .selectRendition("de", "ru")
+                ?.language,
         )
+    }
+
+    @Test
+    fun `single language track selects its only rendition`() {
+        val single = track.copy(renditions = mapOf("ru" to rendition("ru")))
+
+        assertEquals("ru", single.selectRendition(preferredLanguage = "de")?.language)
     }
 
     @Test
@@ -40,7 +67,58 @@ class TrackMediaItemMapperTest {
         assertEquals("srt", queueItem.timedTranscriptFormat)
     }
 
-    private fun Track.renditionFor(language: String?) = selectRendition(language)
+    @Test
+    fun `explicit language applies only to selected logical track`() {
+        val queue = buildPlaybackQueue(
+            tracks = listOf(track.copy(id = "first"), track.copy(id = "second", order = 2)),
+            preferredLanguage = "en",
+            selectedTrackId = "second",
+            selectedLanguage = "ru",
+        )
+
+        assertEquals(listOf("en", "ru"), queue.map(PlaybackQueueItem::language))
+    }
+
+    @Test
+    fun `rendition switch keeps logical ID updates media and resets position preserving state`() {
+        val plan = createRenditionSwitchPlan(
+            track = track,
+            language = "ru",
+            playWhenReady = true,
+            playbackSpeed = 1.5f,
+        )
+
+        requireNotNull(plan)
+        assertEquals("track", plan.item.trackId)
+        assertEquals("ru", plan.item.language)
+        assertEquals("https://example.com/ru.mp3", plan.item.audioUrl)
+        assertEquals("https://example.com/ru.srt", plan.item.timedTranscriptUrl)
+        assertEquals("srt", plan.item.timedTranscriptFormat)
+        assertEquals(true, plan.playWhenReady)
+        assertEquals(1.5f, plan.playbackSpeed)
+    }
+
+    @Test
+    fun `paused rendition switch remains paused`() {
+        val plan = createRenditionSwitchPlan(track, "ru", false, 1.25f)
+
+        requireNotNull(plan)
+        assertEquals(false, plan.playWhenReady)
+        assertEquals(1.25f, plan.playbackSpeed)
+    }
+
+    @Test
+    fun `rendition without transcript maps transcript metadata to null`() {
+        val noTranscriptTrack = track.copy(
+            renditions = track.renditions + ("ru" to rendition("ru")),
+        )
+
+        val plan = createRenditionSwitchPlan(noTranscriptTrack, "ru", true, 1f)
+
+        requireNotNull(plan)
+        assertEquals(null, plan.item.timedTranscriptUrl)
+        assertEquals(null, plan.item.timedTranscriptFormat)
+    }
 
     private companion object {
         fun rendition(language: String) = MediaRendition(
@@ -60,7 +138,10 @@ class TrackMediaItemMapperTest {
                     timedTranscriptUrl = "https://example.com/en.srt",
                     timedTranscriptFormat = "srt",
                 ),
-                "ru" to rendition("ru"),
+                "ru" to rendition("ru").copy(
+                    timedTranscriptUrl = "https://example.com/ru.srt",
+                    timedTranscriptFormat = "srt",
+                ),
             ),
         )
     }

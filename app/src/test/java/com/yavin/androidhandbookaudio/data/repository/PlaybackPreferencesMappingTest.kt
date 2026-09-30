@@ -44,4 +44,31 @@ class PlaybackPreferencesMappingTest {
         assertEquals(0L, bookmark.positionMs)
         assertEquals(1f, bookmark.playbackSpeed)
     }
+
+    @Test
+    fun `preferred language is stored separately from bookmark rendition`() {
+        val preferences = preferencesOf(
+            PlaybackPreferenceKeys.PREFERRED_LANGUAGE to " RU ",
+            PlaybackPreferenceKeys.TRACK_ID to "shorts.kotlin",
+            PlaybackPreferenceKeys.TITLE to "Kotlin",
+            PlaybackPreferenceKeys.LANGUAGE to "en",
+            PlaybackPreferenceKeys.AUDIO_URL to "https://example.com/kotlin-en.mp3",
+        )
+
+        assertEquals("ru", preferences.toPreferredLanguage())
+        assertEquals("en", preferences.toPlaybackBookmark()?.language)
+    }
+
+    @Test
+    fun `old preferences without preferred language remain valid`() {
+        val preferences = preferencesOf(
+            PlaybackPreferenceKeys.TRACK_ID to "shorts.kotlin",
+            PlaybackPreferenceKeys.TITLE to "Kotlin",
+            PlaybackPreferenceKeys.LANGUAGE to "ru",
+            PlaybackPreferenceKeys.AUDIO_URL to "https://example.com/kotlin-ru.mp3",
+        )
+
+        assertNull(preferences.toPreferredLanguage())
+        assertEquals("ru", preferences.toPlaybackBookmark()?.language)
+    }
 }

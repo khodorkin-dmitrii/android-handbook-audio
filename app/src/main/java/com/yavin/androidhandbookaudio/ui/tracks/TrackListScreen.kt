@@ -14,6 +14,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -31,6 +32,8 @@ fun TrackListScreen(
     onBack: () -> Unit,
     onRetry: () -> Unit,
     onPlayOrPause: (String) -> Unit,
+    onLanguageSelected: (String, String) -> Unit,
+    onPreferredLanguageSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val title = (state as? TrackListUiState.Content)?.playlistTitle ?: "Tracks"
@@ -78,8 +81,28 @@ fun TrackListScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                if (state.availableLanguages.size > 1) {
+                    item(key = "preferred-language") {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Preferred language", style = MaterialTheme.typography.titleSmall)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                state.availableLanguages.forEach { language ->
+                                    FilterChip(
+                                        selected = state.preferredLanguage == language,
+                                        onClick = { onPreferredLanguageSelected(language) },
+                                        label = { Text(language.uppercase()) },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
                 items(state.tracks, key = TrackUiModel::id) { track ->
-                    TrackCard(track = track, onPlayOrPause = onPlayOrPause)
+                    TrackCard(
+                        track = track,
+                        onPlayOrPause = onPlayOrPause,
+                        onLanguageSelected = onLanguageSelected,
+                    )
                 }
             }
         }
@@ -90,8 +113,12 @@ fun TrackListScreen(
 private fun TrackCard(
     track: TrackUiModel,
     onPlayOrPause: (String) -> Unit,
+    onLanguageSelected: (String, String) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        onClick = { onPlayOrPause(track.id) },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -112,11 +139,25 @@ private fun TrackCard(
                         MaterialTheme.colorScheme.onSurface
                     },
                 )
-                Text(
-                    text = track.languages.joinToString(" / "),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                if (track.languages.size > 1) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        track.languages.forEach { language ->
+                            FilterChip(
+                                selected = track.activeLanguage == language,
+                                onClick = { onLanguageSelected(track.id, language) },
+                                label = { Text(language.uppercase()) },
+                            )
+                        }
+                    }
+                } else {
+                    track.languages.singleOrNull()?.let { language ->
+                        Text(
+                            text = language.uppercase(),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
                 track.playbackStatus?.let { status ->
                     Text(
                         text = status.displayName(),
