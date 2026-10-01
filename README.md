@@ -4,13 +4,17 @@ Android Handbook Audio is a native Android companion app for [Android Dev Handbo
 
 The first content source is **Short Audio Notes**: concise topics covering Android, Kotlin, Computer Science, Coroutines, Architecture, Networking, Testing, and related areas in English and Russian.
 
+## 📱 Player
+
+![Full player with synchronized transcript in light and dark themes](screenshots/player-light-dark.png)
+
 ## ✨ Goals
 
 - Browse remote playlists and tracks.
 - Stream audio directly from the Handbook.
 - Support English and Russian content.
 - Provide background playback and media controls.
-- Later add synchronized transcripts with tap-to-seek.
+- Provide synchronized transcripts with active cue highlighting and tap-to-seek.
 
 ## 🛠 Tech stack
 
@@ -39,9 +43,14 @@ https://khodorkin-dmitrii.github.io/android-dev-handbook/assets/audio/catalog.js
 - [x] Full player screen
 - [x] Background playback / MediaSession
 - [x] Playback polish and persistence
-- [ ] Language switching
+- [x] Language switching and preferred language
+- [x] Cue-aligned position transfer between language renditions
 - [ ] Static transcripts
-- [ ] Timed synchronized transcripts
+- [x] Timed synchronized SRT transcripts
+- [x] Inline SRT formatting (`italic`, `bold`, `underline`)
+- [ ] UI/UX polish: visual hierarchy, icon-based controls, spacing, and interaction feedback
+- [ ] UI/UX accessibility and adaptive layouts for different screen sizes
+- [ ] Content improvements: expand playlists, review translations, audio quality, and transcript parity
 - [ ] Offline/caching experiments
 
 ## 🔗 Related

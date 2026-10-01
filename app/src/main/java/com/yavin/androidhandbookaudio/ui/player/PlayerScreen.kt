@@ -1,5 +1,6 @@
 package com.yavin.androidhandbookaudio.ui.player
 
+import android.content.res.Configuration
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -455,10 +456,18 @@ private fun PlayerControlsLoadingPreview() {
 }
 
 @Preview(
-    name = "Player with transcript",
+    name = "Player with transcript — light",
     showBackground = true,
     widthDp = 393,
     heightDp = 852,
+    uiMode = Configuration.UI_MODE_NIGHT_NO,
+)
+@Preview(
+    name = "Player with transcript — dark",
+    showBackground = true,
+    widthDp = 393,
+    heightDp = 852,
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
 )
 @Composable
 private fun PlayerScreenPreview() {
