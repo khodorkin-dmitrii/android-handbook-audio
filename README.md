@@ -4,28 +4,35 @@ Android Handbook Audio is a native Android companion app for [Android Dev Handbo
 
 The first content source is **Short Audio Notes**: concise topics covering Android, Kotlin, Computer Science, Coroutines, Architecture, Networking, Testing, and related areas in English and Russian.
 
-## 📱 Player
-
-![Full player with synchronized transcript in light and dark themes](screenshots/player-light-dark.png)
-
-## ✨ Goals
-
-- Browse remote playlists and tracks.
-- Stream audio directly from the Handbook.
-- Support English and Russian content.
-- Provide background playback and media controls.
-- Provide synchronized transcripts with active cue highlighting and tap-to-seek.
-
-## 🛠 Tech stack
-
-- Kotlin
-- Jetpack Compose + Material 3
-- AndroidX Navigation 3
-- MVVM + StateFlow
-- Hilt
-- Retrofit / OkHttp / Kotlin Serialization
-- AndroidX Media3
-- DataStore
+<table>
+  <tr>
+    <td valign="top" width="40%">
+      <h2>✨ Goals</h2>
+      <ul>
+        <li>Browse remote playlists and tracks.</li>
+        <li>Stream audio directly from the Handbook.</li>
+        <li>Support English and Russian content.</li>
+        <li>Provide background playback and media controls.</li>
+        <li>Provide synchronized transcripts with active cue highlighting and tap-to-seek.</li>
+      </ul>
+      <h2>🛠 Tech stack</h2>
+      <ul>
+        <li>Kotlin</li>
+        <li>Jetpack Compose + Material 3</li>
+        <li>AndroidX Navigation 3</li>
+        <li>MVVM + StateFlow</li>
+        <li>Hilt</li>
+        <li>Retrofit / OkHttp / Kotlin Serialization</li>
+        <li>AndroidX Media3</li>
+        <li>DataStore</li>
+      </ul>
+    </td>
+    <td valign="top" width="60%">
+      <h2>📱 Player</h2>
+      <img src="./screenshots/player-light-dark.png" alt="Full player with synchronized transcript in light and dark themes" width="100%">
+    </td>
+  </tr>
+</table>
 
 ## 🌐 Data source
 
