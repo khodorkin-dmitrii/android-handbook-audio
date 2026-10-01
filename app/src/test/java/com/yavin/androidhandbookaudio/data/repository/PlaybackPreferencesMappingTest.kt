@@ -16,6 +16,7 @@ class PlaybackPreferencesMappingTest {
         val bookmark = preferencesOf(
             PlaybackPreferenceKeys.TRACK_ID to "shorts.kotlin",
             PlaybackPreferenceKeys.TITLE to "Kotlin",
+            PlaybackPreferenceKeys.PLAYLIST_TITLE to "Short Audio Notes",
             PlaybackPreferenceKeys.LANGUAGE to "ru",
             PlaybackPreferenceKeys.AUDIO_URL to "https://example.com/kotlin-ru.mp3",
             PlaybackPreferenceKeys.POSITION_MS to 42_000L,
@@ -24,6 +25,7 @@ class PlaybackPreferencesMappingTest {
 
         requireNotNull(bookmark)
         assertEquals("shorts.kotlin", bookmark.trackId)
+        assertEquals("Short Audio Notes", bookmark.playlistTitle)
         assertEquals("ru", bookmark.language)
         assertEquals(42_000L, bookmark.positionMs)
         assertEquals(1.5f, bookmark.playbackSpeed)

@@ -10,6 +10,7 @@ sealed interface PlayerUiState {
     data class Active(
         val trackId: String,
         val title: String,
+        val playlistTitle: String?,
         val language: String?,
         val availableLanguages: List<String>,
         val status: PlayerStatus,
@@ -70,6 +71,7 @@ fun PlaybackState.toPlayerUiState(
     return PlayerUiState.Active(
         trackId = trackId,
         title = currentTitle ?: "Unknown track",
+        playlistTitle = currentPlaylistTitle,
         language = currentLanguage,
         availableLanguages = availableLanguages,
         status = status,

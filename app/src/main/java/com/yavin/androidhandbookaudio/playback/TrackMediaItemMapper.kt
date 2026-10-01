@@ -10,6 +10,7 @@ import com.yavin.androidhandbookaudio.domain.model.Track
 data class PlaybackQueueItem(
     val trackId: String,
     val title: String,
+    val playlistTitle: String? = null,
     val language: String,
     val audioUrl: String,
     val timedTranscriptUrl: String? = null,
@@ -30,6 +31,7 @@ fun Track.selectRendition(
 
 fun buildPlaybackQueue(
     tracks: List<Track>,
+    playlistTitle: String? = null,
     preferredLanguage: String? = null,
     selectedTrackId: String? = null,
     selectedLanguage: String? = null,
@@ -38,15 +40,19 @@ fun buildPlaybackQueue(
         explicitlySelectedLanguage = selectedLanguage.takeIf { track.id == selectedTrackId },
         preferredLanguage = preferredLanguage,
     ) ?: return@mapNotNull null
-    track.toPlaybackQueueItem(rendition)
+    track.toPlaybackQueueItem(rendition, playlistTitle)
 }
 
-fun Track.toPlaybackQueueItem(rendition: MediaRendition): PlaybackQueueItem =
+fun Track.toPlaybackQueueItem(
+    rendition: MediaRendition,
+    playlistTitle: String? = null,
+): PlaybackQueueItem =
     PlaybackQueueItem(
         trackId = id,
         title = titles[rendition.language]
             ?: titles["en"]
             ?: titles.values.first(),
+        playlistTitle = playlistTitle,
         language = rendition.language,
         audioUrl = rendition.audioUrl,
         timedTranscriptUrl = rendition.timedTranscriptUrl,
@@ -64,12 +70,13 @@ fun createRenditionSwitchPlan(
     language: String,
     playWhenReady: Boolean,
     playbackSpeed: Float,
+    playlistTitle: String? = null,
 ): RenditionSwitchPlan? {
     val rendition = track.selectRendition(explicitlySelectedLanguage = language)
         ?.takeIf { it.language.equals(language.trim(), ignoreCase = true) }
         ?: return null
     return RenditionSwitchPlan(
-        item = track.toPlaybackQueueItem(rendition),
+        item = track.toPlaybackQueueItem(rendition, playlistTitle),
         playWhenReady = playWhenReady,
         playbackSpeed = playbackSpeed,
     )
@@ -81,6 +88,7 @@ fun PlaybackQueueItem.toMediaItem(): MediaItem = MediaItem.Builder()
     .setMediaMetadata(
         MediaMetadata.Builder()
             .setTitle(title)
+            .setAlbumTitle(playlistTitle)
             .setSubtitle(language.uppercase())
             .setExtras(
                 Bundle().apply {
@@ -95,6 +103,7 @@ fun PlaybackQueueItem.toMediaItem(): MediaItem = MediaItem.Builder()
 fun PlaybackBookmark.toMediaItem(): MediaItem = PlaybackQueueItem(
     trackId = trackId,
     title = title,
+    playlistTitle = playlistTitle,
     language = language,
     audioUrl = audioUrl,
     timedTranscriptUrl = timedTranscriptUrl,

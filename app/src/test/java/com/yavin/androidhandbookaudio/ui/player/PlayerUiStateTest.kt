@@ -13,6 +13,7 @@ class PlayerUiStateTest {
         val state = PlaybackState(
             currentTrackId = "shorts.kotlin",
             currentTitle = "Kotlin",
+            currentPlaylistTitle = "Short Audio Notes",
             currentLanguage = "en",
             availableLanguages = listOf("en", "ru"),
             isPlaying = true,
@@ -25,6 +26,7 @@ class PlayerUiStateTest {
 
         assertEquals(PlayerStatus.PLAYING, state.status)
         assertEquals("Kotlin", state.title)
+        assertEquals("Short Audio Notes", state.playlistTitle)
         assertEquals("en", state.language)
         assertEquals(listOf("en", "ru"), state.availableLanguages)
         assertEquals(false, state.hasPrevious)

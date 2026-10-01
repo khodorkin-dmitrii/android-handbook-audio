@@ -125,6 +125,7 @@ class Media3PlaybackController @Inject constructor(
     override fun playPlaylist(
         tracks: List<Track>,
         selectedTrackId: String,
+        playlistTitle: String?,
         preferredLanguage: String?,
         selectedLanguage: String?,
     ) {
@@ -133,6 +134,7 @@ class Media3PlaybackController @Inject constructor(
         val pending = PendingPlayback(
             queue = buildPlaybackQueue(
                 tracks = tracks,
+                playlistTitle = playlistTitle,
                 preferredLanguage = preferredLanguage,
                 selectedTrackId = selectedTrackId,
                 selectedLanguage = selectedLanguage,
@@ -173,6 +175,7 @@ class Media3PlaybackController @Inject constructor(
         val plan = createRenditionSwitchPlan(
             track = track,
             language = language,
+            playlistTitle = mediaController.currentMediaItem?.mediaMetadata?.albumTitle?.toString(),
             playWhenReady = mediaController.playWhenReady,
             playbackSpeed = mediaController.playbackParameters.speed,
         ) ?: return
@@ -264,6 +267,7 @@ class Media3PlaybackController @Inject constructor(
         _state.value = PlaybackState(
             currentTrackId = currentTrackId,
             currentTitle = player.currentMediaItem?.mediaMetadata?.title?.toString(),
+            currentPlaylistTitle = player.currentMediaItem?.mediaMetadata?.albumTitle?.toString(),
             currentLanguage = player.currentMediaItem?.mediaMetadata?.subtitle
                 ?.toString()
                 ?.lowercase()
@@ -315,6 +319,7 @@ class Media3PlaybackController @Inject constructor(
         val snapshot = PlaybackBookmark(
             trackId = mediaItem.mediaId,
             title = mediaItem.mediaMetadata.title?.toString() ?: return,
+            playlistTitle = mediaItem.mediaMetadata.albumTitle?.toString(),
             language = language,
             audioUrl = localConfiguration.uri.toString(),
             positionMs = player.currentPosition.coerceAtLeast(0),

@@ -86,6 +86,7 @@ class TrackListViewModel @Inject constructor(
         playbackController.playPlaylist(
             tracks = loadedPlaylist.tracks,
             selectedTrackId = trackId,
+            playlistTitle = loadedPlaylist.displayTitle(),
             preferredLanguage = preferredLanguage,
         )
     }
@@ -109,6 +110,7 @@ class TrackListViewModel @Inject constructor(
             playbackController.playPlaylist(
                 tracks = loadedPlaylist.tracks,
                 selectedTrackId = trackId,
+                playlistTitle = loadedPlaylist.displayTitle(),
                 preferredLanguage = preferredLanguage,
                 selectedLanguage = normalizedLanguage,
             )
@@ -126,7 +128,7 @@ class TrackListViewModel @Inject constructor(
             TrackListUiState.Empty
         } else {
             TrackListUiState.Content(
-                playlistTitle = playlist.titles["en"] ?: playlist.titles.values.first(),
+                playlistTitle = playlist.displayTitle(),
                 preferredLanguage = preferredLanguage,
                 availableLanguages = playlist.tracks
                     .flatMap(Track::availableLanguages)
@@ -136,6 +138,8 @@ class TrackListViewModel @Inject constructor(
         }
     }
 }
+
+private fun PlaylistManifest.displayTitle(): String = titles["en"] ?: titles.values.first()
 
 private fun Track.toUiModel(playbackState: PlaybackState): TrackUiModel {
     val isCurrent = playbackState.currentTrackId == id

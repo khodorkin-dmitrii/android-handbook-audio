@@ -1,6 +1,13 @@
 package com.yavin.androidhandbookaudio.ui.player
 
 import android.content.res.Configuration
+import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -9,16 +16,20 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -37,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -45,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.yavin.androidhandbookaudio.R
 import com.yavin.androidhandbookaudio.domain.model.TranscriptSegment
 import com.yavin.androidhandbookaudio.domain.model.TranscriptStyleRange
 import com.yavin.androidhandbookaudio.domain.model.TranscriptTextStyle
@@ -66,11 +79,12 @@ fun PlayerScreen(
     onTranscriptSegmentClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val screenTitle = (state as? PlayerUiState.Active)?.playlistTitle ?: "Now playing"
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Now playing") },
+                title = { Text(screenTitle) },
                 navigationIcon = {
                     TextButton(onClick = onBack) {
                         Text("Back")
@@ -159,7 +173,7 @@ private fun ActivePlayer(
                 onNext = onNext,
                 onSpeedSelected = onSpeedSelected,
                 onLanguageSelected = onLanguageSelected,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
             )
             HorizontalDivider()
             TranscriptPanel(
@@ -210,9 +224,9 @@ private fun PlayerControls(
     Column(
         modifier = modifier
             .verticalScroll(rememberScrollState())
-            .padding(20.dp),
+            .padding(vertical = 4.dp, horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(
             text = state.title,
@@ -229,6 +243,89 @@ private fun PlayerControls(
         )
         state.errorMessage?.let { error ->
             Text(error, color = MaterialTheme.colorScheme.error)
+        }
+
+        val durationMs = state.durationMs
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(0.dp),
+        ) {
+            AudioSeekBar(
+                value = sliderPosition.coerceIn(0f, durationMs?.toFloat() ?: 0f),
+                onValueChange = { value ->
+                    onSeekingChange(true, value)
+                },
+                onValueChangeFinished = {
+                    onSeekTo(sliderPosition.toLong())
+                    onSeekingChange(false, sliderPosition)
+                },
+                valueRange = 0f..(durationMs?.toFloat()?.coerceAtLeast(1f) ?: 1f),
+                enabled = durationMs != null && durationMs > 0,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(24.dp),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    formatPlaybackTime(
+                        if (isSeeking) sliderPosition.toLong() else state.positionMs,
+                    ),
+                )
+                Text(durationMs?.let(::formatPlaybackTime) ?: "--:--")
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onPrevious, enabled = state.hasPrevious) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_skip_previous_24),
+                    contentDescription = "Previous track",
+                )
+            }
+            IconButton(onClick = onSeekBackward) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_replay_10_24),
+                    contentDescription = "Seek backward 10 seconds",
+                )
+            }
+            FilledIconButton(
+                onClick = onPlayOrPause,
+                modifier = Modifier.size(64.dp),
+            ) {
+                AnimatedContent(
+                    targetState = state.status.toPrimaryPlaybackIcon(),
+                    transitionSpec = {
+                        (fadeIn() + scaleIn(initialScale = 0.7f)) togetherWith
+                            (fadeOut() + scaleOut(targetScale = 0.7f))
+                    },
+                    label = "Play pause icon",
+                ) { primaryIcon ->
+                    Icon(
+                        painter = painterResource(primaryIcon.drawableRes),
+                        contentDescription = primaryIcon.contentDescription,
+                        modifier = Modifier.size(32.dp),
+                    )
+                }
+            }
+            IconButton(onClick = onSeekForward) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_forward_10_24),
+                    contentDescription = "Seek forward 10 seconds",
+                )
+            }
+            IconButton(onClick = onNext, enabled = state.hasNext) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_skip_next_24),
+                    contentDescription = "Next track",
+                )
+            }
         }
 
         when (state.availableLanguages.size) {
@@ -259,63 +356,36 @@ private fun PlayerControls(
                 }
             }
         }
-
-        val durationMs = state.durationMs
-        AudioSeekBar(
-            value = sliderPosition.coerceIn(0f, durationMs?.toFloat() ?: 0f),
-            onValueChange = { value ->
-                onSeekingChange(true, value)
-            },
-            onValueChangeFinished = {
-                onSeekTo(sliderPosition.toLong())
-                onSeekingChange(false, sliderPosition)
-            },
-            valueRange = 0f..(durationMs?.toFloat()?.coerceAtLeast(1f) ?: 1f),
-            enabled = durationMs != null && durationMs > 0,
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(formatPlaybackTime(if (isSeeking) sliderPosition.toLong() else state.positionMs))
-            Text(durationMs?.let(::formatPlaybackTime) ?: "--:--")
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-        ) {
-            TextButton(onClick = onPrevious, enabled = state.hasPrevious) { Text("Previous") }
-            TextButton(onClick = onSeekBackward) { Text("-10s") }
-            Button(onClick = onPlayOrPause) {
-                Text(
-                    when (state.status) {
-                        PlayerStatus.PLAYING -> "Pause"
-                        PlayerStatus.ERROR -> "Retry"
-                        else -> "Play"
-                    },
-                )
-            }
-            TextButton(onClick = onSeekForward) { Text("+10s") }
-            TextButton(onClick = onNext, enabled = state.hasNext) { Text("Next") }
-        }
-
-        Text("Playback speed", style = MaterialTheme.typography.titleSmall)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            PlaybackSpeedOptions.forEach { speed ->
-                FilterChip(
-                    selected = kotlin.math.abs(state.playbackSpeed - speed) < 0.01f,
-                    onClick = { onSpeedSelected(speed) },
-                    label = { Text("${speed}x") },
-                )
+        Column {
+            Text("Playback speed", style = MaterialTheme.typography.bodySmall)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                PlaybackSpeedOptions.forEach { speed ->
+                    FilterChip(
+                        selected = kotlin.math.abs(state.playbackSpeed - speed) < 0.01f,
+                        onClick = { onSpeedSelected(speed) },
+                        label = { Text("${speed}x") },
+                    )
+                }
             }
         }
     }
+}
+
+private data class PrimaryPlaybackIcon(
+    @param:DrawableRes val drawableRes: Int,
+    val contentDescription: String,
+)
+
+private fun PlayerStatus.toPrimaryPlaybackIcon(): PrimaryPlaybackIcon = when (this) {
+    PlayerStatus.PLAYING -> PrimaryPlaybackIcon(R.drawable.ic_pause_24, "Pause")
+    PlayerStatus.ERROR -> PrimaryPlaybackIcon(R.drawable.ic_refresh_24, "Retry playback")
+    PlayerStatus.BUFFERING, PlayerStatus.PAUSED ->
+        PrimaryPlaybackIcon(R.drawable.ic_play_arrow_24, "Play")
 }
 
 @Composable
@@ -336,10 +406,10 @@ private fun TranscriptPanel(
         state = listState,
         modifier = modifier.fillMaxWidth(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            horizontal = 24.dp,
-            vertical = 32.dp,
+            horizontal = 18.dp,
+            vertical = 24.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         itemsIndexed(
             items = state.segments,
@@ -499,6 +569,7 @@ private fun previewPlayerState(
 ) = PlayerUiState.Active(
     trackId = "shorts.libraries-build",
     title = "Libraries & Build",
+    playlistTitle = "Short Audio Notes",
     language = "en",
     availableLanguages = listOf("en", "ru"),
     status = status,
@@ -535,6 +606,49 @@ private val previewTranscriptSegments = listOf(
         endMs = 85_000,
         text = "Maven Central, GitHub Packages, Nexus, and Artifactory are common options.",
     ),
+    TranscriptSegment(
+        startMs = 85_000,
+        endMs = 89_000,
+        text = "The Gradle maven-publish plugin is commonly used to upload the artifact.",
+    ),
+    TranscriptSegment(
+        startMs = 89_000,
+        endMs = 93_000,
+        text = "POM, sources, and optional documentation can be published alongside it.",
+    ),
+    TranscriptSegment(
+        startMs = 93_000,
+        endMs = 96_000,
+        text = previewVersioningQuestion,
+        styleRanges = listOf(
+            TranscriptStyleRange(
+                start = 0,
+                endExclusive = previewVersioningQuestion.length,
+                style = TranscriptTextStyle.ITALIC,
+            ),
+        ),
+    ),
+    TranscriptSegment(
+        startMs = 96_000,
+        endMs = 99_000,
+        text = "Semantic Versioning is often used:",
+    ),
+    TranscriptSegment(
+        startMs = 99_000,
+        endMs = 104_000,
+        text = "MAJOR for breaking changes, MINOR for backward-compatible features,",
+    ),
+    TranscriptSegment(
+        startMs = 104_000,
+        endMs = 108_000,
+        text = "and PATCH for backward-compatible fixes.",
+    ),
+    TranscriptSegment(
+        startMs = 108_000,
+        endMs = 113_000,
+        text = "API dumps and binary compatibility validation are useful for a published API.",
+    ),
 )
 
 private const val previewQuestion = "How and where are Android libraries published?"
+private const val previewVersioningQuestion = "How should a library be versioned?"

@@ -223,6 +223,7 @@ private class RecordingPlaybackController(initialState: PlaybackState) : Playbac
     override fun playPlaylist(
         tracks: List<Track>,
         selectedTrackId: String,
+        playlistTitle: String?,
         preferredLanguage: String?,
         selectedLanguage: String?,
     ) = Unit

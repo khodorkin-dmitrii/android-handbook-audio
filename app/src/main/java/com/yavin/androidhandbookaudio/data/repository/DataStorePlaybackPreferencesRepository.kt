@@ -37,6 +37,9 @@ class DataStorePlaybackPreferencesRepository @Inject constructor(
         context.playbackPreferencesDataStore.edit { preferences ->
             preferences[PlaybackPreferenceKeys.TRACK_ID] = bookmark.trackId
             preferences[PlaybackPreferenceKeys.TITLE] = bookmark.title
+            bookmark.playlistTitle?.let { value ->
+                preferences[PlaybackPreferenceKeys.PLAYLIST_TITLE] = value
+            } ?: preferences.remove(PlaybackPreferenceKeys.PLAYLIST_TITLE)
             preferences[PlaybackPreferenceKeys.LANGUAGE] = bookmark.language
             preferences[PlaybackPreferenceKeys.AUDIO_URL] = bookmark.audioUrl
             preferences[PlaybackPreferenceKeys.POSITION_MS] = bookmark.positionMs.coerceAtLeast(0)
@@ -62,6 +65,7 @@ class DataStorePlaybackPreferencesRepository @Inject constructor(
 internal object PlaybackPreferenceKeys {
     val TRACK_ID = stringPreferencesKey("last_track_id")
     val TITLE = stringPreferencesKey("last_track_title")
+    val PLAYLIST_TITLE = stringPreferencesKey("last_playlist_title")
     val LANGUAGE = stringPreferencesKey("last_rendition_language")
     val PREFERRED_LANGUAGE = stringPreferencesKey("preferred_language")
     val AUDIO_URL = stringPreferencesKey("last_audio_url")
@@ -85,6 +89,8 @@ internal fun Preferences.toPlaybackBookmark(): PlaybackBookmark? {
     return PlaybackBookmark(
         trackId = trackId,
         title = title,
+        playlistTitle = this[PlaybackPreferenceKeys.PLAYLIST_TITLE]
+            ?.takeIf(String::isNotBlank),
         language = language,
         audioUrl = audioUrl,
         positionMs = this[PlaybackPreferenceKeys.POSITION_MS]?.coerceAtLeast(0) ?: 0,

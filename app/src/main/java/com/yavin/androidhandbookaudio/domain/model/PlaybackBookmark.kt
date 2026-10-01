@@ -3,6 +3,7 @@ package com.yavin.androidhandbookaudio.domain.model
 data class PlaybackBookmark(
     val trackId: String,
     val title: String,
+    val playlistTitle: String? = null,
     val language: String,
     val audioUrl: String,
     val positionMs: Long,
