@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.yavin.androidhandbookaudio.domain.model.PlaybackBookmark
+import com.yavin.androidhandbookaudio.domain.repository.DEFAULT_PLAYBACK_LANGUAGE
 import com.yavin.androidhandbookaudio.domain.repository.PlaybackPreferencesRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -31,7 +32,7 @@ class DataStorePlaybackPreferencesRepository @Inject constructor(
 
     override val bookmark: Flow<PlaybackBookmark?> = preferences.map(Preferences::toPlaybackBookmark)
 
-    override val preferredLanguage: Flow<String?> = preferences.map(Preferences::toPreferredLanguage)
+    override val preferredLanguage: Flow<String> = preferences.map(Preferences::toPreferredLanguage)
 
     override suspend fun saveBookmark(bookmark: PlaybackBookmark) {
         context.playbackPreferencesDataStore.edit { preferences ->
@@ -75,11 +76,12 @@ internal object PlaybackPreferenceKeys {
     val TIMED_TRANSCRIPT_FORMAT = stringPreferencesKey("last_timed_transcript_format")
 }
 
-internal fun Preferences.toPreferredLanguage(): String? =
+internal fun Preferences.toPreferredLanguage(): String =
     this[PlaybackPreferenceKeys.PREFERRED_LANGUAGE]
         ?.trim()
         ?.lowercase()
         ?.takeIf(String::isNotEmpty)
+        ?: DEFAULT_PLAYBACK_LANGUAGE
 
 internal fun Preferences.toPlaybackBookmark(): PlaybackBookmark? {
     val trackId = this[PlaybackPreferenceKeys.TRACK_ID]?.takeIf(String::isNotBlank) ?: return null

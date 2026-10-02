@@ -23,6 +23,7 @@ data class PlaybackState(
 )
 
 data class PlaybackRenditionMetadata(
+    val language: String,
     val timedTranscriptUrl: String?,
     val timedTranscriptFormat: String?,
 )
@@ -34,15 +35,14 @@ interface PlaybackController {
         tracks: List<Track>,
         selectedTrackId: String,
         playlistTitle: String? = null,
-        preferredLanguage: String? = null,
-        selectedLanguage: String? = null,
+        preferredLanguage: String,
     )
 
     fun updatePlaylistTracks(tracks: List<Track>)
 
-    fun getCurrentTrackRendition(language: String): PlaybackRenditionMetadata?
+    fun getCurrentTrackRendition(preferredLanguage: String): PlaybackRenditionMetadata?
 
-    fun switchLanguage(language: String, startPositionMs: Long = 0)
+    fun switchLanguage(preferredLanguage: String, startPositionMs: Long = 0)
 
     fun play()
 

@@ -234,7 +234,13 @@ private fun PlayerControls(
         )
         Text(
             text = listOfNotNull(
-                state.language?.uppercase(),
+                state.language?.uppercase()?.let { actualLanguage ->
+                    if (state.preferredLanguage != state.language) {
+                        "$actualLanguage actual (preferred ${state.preferredLanguage.uppercase()})"
+                    } else {
+                        actualLanguage
+                    }
+                },
                 state.status.displayName(),
                 state.transcript.statusLabel(),
             ).joinToString(" • "),
@@ -332,7 +338,7 @@ private fun PlayerControls(
             2 -> SingleChoiceSegmentedButtonRow {
                 state.availableLanguages.forEachIndexed { index, language ->
                     SegmentedButton(
-                        selected = state.language == language,
+                        selected = state.preferredLanguage == language,
                         onClick = { onLanguageSelected(language) },
                         shape = SegmentedButtonDefaults.itemShape(
                             index = index,
@@ -349,7 +355,7 @@ private fun PlayerControls(
             ) {
                 state.availableLanguages.forEach { language ->
                     FilterChip(
-                        selected = state.language == language,
+                        selected = state.preferredLanguage == language,
                         onClick = { onLanguageSelected(language) },
                         label = { Text(language.uppercase()) },
                     )
@@ -571,6 +577,7 @@ private fun previewPlayerState(
     title = "Libraries & Build",
     playlistTitle = "Short Audio Notes",
     language = "en",
+    preferredLanguage = "en",
     availableLanguages = listOf("en", "ru"),
     status = status,
     positionMs = 78_000,

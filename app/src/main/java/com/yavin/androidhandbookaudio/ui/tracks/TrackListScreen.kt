@@ -1,5 +1,6 @@
 package com.yavin.androidhandbookaudio.ui.tracks
 
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,7 +15,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -23,7 +23,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.yavin.androidhandbookaudio.ui.theme.AndroidHandbookAudioTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,8 +34,6 @@ fun TrackListScreen(
     onBack: () -> Unit,
     onRetry: () -> Unit,
     onPlayOrPause: (String) -> Unit,
-    onLanguageSelected: (String, String) -> Unit,
-    onPreferredLanguageSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val title = (state as? TrackListUiState.Content)?.playlistTitle ?: "Tracks"
@@ -81,27 +81,10 @@ fun TrackListScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                if (state.availableLanguages.size > 1) {
-                    item(key = "preferred-language") {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Preferred language", style = MaterialTheme.typography.titleSmall)
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                state.availableLanguages.forEach { language ->
-                                    FilterChip(
-                                        selected = state.preferredLanguage == language,
-                                        onClick = { onPreferredLanguageSelected(language) },
-                                        label = { Text(language.uppercase()) },
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
                 items(state.tracks, key = TrackUiModel::id) { track ->
                     TrackCard(
                         track = track,
                         onPlayOrPause = onPlayOrPause,
-                        onLanguageSelected = onLanguageSelected,
                     )
                 }
             }
@@ -113,7 +96,6 @@ fun TrackListScreen(
 private fun TrackCard(
     track: TrackUiModel,
     onPlayOrPause: (String) -> Unit,
-    onLanguageSelected: (String, String) -> Unit,
 ) {
     Card(
         onClick = { onPlayOrPause(track.id) },
@@ -139,24 +121,12 @@ private fun TrackCard(
                         MaterialTheme.colorScheme.onSurface
                     },
                 )
-                if (track.languages.size > 1) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        track.languages.forEach { language ->
-                            FilterChip(
-                                selected = track.activeLanguage == language,
-                                onClick = { onLanguageSelected(track.id, language) },
-                                label = { Text(language.uppercase()) },
-                            )
-                        }
-                    }
-                } else {
-                    track.languages.singleOrNull()?.let { language ->
-                        Text(
-                            text = language.uppercase(),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                if (track.languages.isNotEmpty()) {
+                    Text(
+                        text = track.languages.joinToString(" / ") { it.uppercase() },
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
                 track.playbackStatus?.let { status ->
                     Text(
@@ -195,3 +165,86 @@ private fun CenteredTrackContent(
         content()
     }
 }
+
+@Preview(
+    name = "Track list — light",
+    showBackground = true,
+    widthDp = 393,
+    heightDp = 852,
+    uiMode = Configuration.UI_MODE_NIGHT_NO,
+)
+@Preview(
+    name = "Track list — dark",
+    showBackground = true,
+    widthDp = 393,
+    heightDp = 852,
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+)
+@Composable
+private fun TrackListScreenPreview() {
+    AndroidHandbookAudioTheme(dynamicColor = false) {
+        TrackListScreen(
+            state = previewTrackListState,
+            onBack = {},
+            onRetry = {},
+            onPlayOrPause = {},
+        )
+    }
+}
+
+@Preview(
+    name = "Track card — playing",
+    showBackground = true,
+    widthDp = 393,
+)
+@Composable
+private fun TrackCardPreview() {
+    AndroidHandbookAudioTheme(dynamicColor = false) {
+        TrackCard(
+            track = previewTrackListState.tracks.first { it.isCurrent },
+            onPlayOrPause = {},
+        )
+    }
+}
+
+private val previewTrackListState = TrackListUiState.Content(
+    playlistTitle = "Short Audio Notes",
+    tracks = listOf(
+        TrackUiModel(
+            id = "shorts.computer-science",
+            order = 1,
+            title = "Computer Science",
+            languages = listOf("en", "ru"),
+            isCurrent = false,
+            isPlaying = false,
+            playbackStatus = null,
+        ),
+        TrackUiModel(
+            id = "shorts.kotlin",
+            order = 2,
+            title = "Kotlin",
+            languages = listOf("en", "ru"),
+            isCurrent = true,
+            isPlaying = true,
+            playbackStatus = TrackPlaybackStatus.PLAYING,
+        ),
+        TrackUiModel(
+            id = "shorts.jetpack-compose",
+            order = 3,
+            title = "Jetpack Compose",
+            languages = listOf("en", "ru"),
+            isCurrent = false,
+            isPlaying = false,
+            playbackStatus = null,
+        ),
+        TrackUiModel(
+            id = "shorts.coroutines-flow",
+            order = 4,
+            title = "Coroutines & Flow",
+            languages = listOf("en", "ru"),
+            isCurrent = false,
+            isPlaying = false,
+            playbackStatus = null,
+        ),
+    ),
+)

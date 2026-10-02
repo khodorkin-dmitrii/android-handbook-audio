@@ -1,6 +1,7 @@
 package com.yavin.androidhandbookaudio.playback
 
 import com.yavin.androidhandbookaudio.domain.model.TimedTranscript
+import com.yavin.androidhandbookaudio.domain.repository.PlaybackPreferencesRepository
 import com.yavin.androidhandbookaudio.domain.repository.TranscriptRepository
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -8,29 +9,36 @@ import kotlinx.coroutines.CancellationException
 class SwitchPlaybackLanguage @Inject constructor(
     private val playbackController: PlaybackController,
     private val transcriptRepository: TranscriptRepository,
+    private val playbackPreferencesRepository: PlaybackPreferencesRepository,
 ) {
     suspend operator fun invoke(
         language: String,
         loadedCurrentTranscript: TimedTranscript? = null,
     ) {
+        val normalizedLanguage = language.trim().lowercase()
+        if (normalizedLanguage.isEmpty()) return
+        playbackPreferencesRepository.savePreferredLanguage(normalizedLanguage)
+
         val initialState = playbackController.state.value
         val trackId = initialState.currentTrackId ?: return
         val currentLanguage = initialState.currentLanguage ?: return
-        val normalizedLanguage = language.trim().lowercase()
-        if (normalizedLanguage == currentLanguage) return
         val targetRendition = playbackController.getCurrentTrackRendition(normalizedLanguage)
             ?: return
 
-        val targetPositionMs = try {
-            resolveTargetPosition(
-                playbackState = initialState,
-                targetRendition = targetRendition,
-                loadedCurrentTranscript = loadedCurrentTranscript,
-            )
-        } catch (cancellation: CancellationException) {
-            throw cancellation
-        } catch (_: Exception) {
-            0L
+        val targetPositionMs = if (targetRendition.language == currentLanguage) {
+            initialState.positionMs
+        } else {
+            try {
+                resolveTargetPosition(
+                    playbackState = initialState,
+                    targetRendition = targetRendition,
+                    loadedCurrentTranscript = loadedCurrentTranscript,
+                )
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                0L
+            }
         }
 
         val latestState = playbackController.state.value

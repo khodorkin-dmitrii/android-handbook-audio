@@ -1,8 +1,10 @@
 package com.yavin.androidhandbookaudio.ui.player
 
 import com.yavin.androidhandbookaudio.domain.model.Track
+import com.yavin.androidhandbookaudio.domain.model.PlaybackBookmark
 import com.yavin.androidhandbookaudio.domain.model.TimedTranscript
 import com.yavin.androidhandbookaudio.domain.model.TranscriptSegment
+import com.yavin.androidhandbookaudio.domain.repository.PlaybackPreferencesRepository
 import com.yavin.androidhandbookaudio.domain.repository.TranscriptRepository
 import com.yavin.androidhandbookaudio.playback.PlaybackController
 import com.yavin.androidhandbookaudio.playback.PlaybackRenditionMetadata
@@ -71,6 +73,7 @@ class PlayerViewModelTest {
         viewModel.selectLanguage("ru")
         advanceUntilIdle()
         assertEquals("ru", controller.lastLanguage)
+        assertEquals("ru", (viewModel.uiState.value as PlayerUiState.Active).preferredLanguage)
     }
 
     @Test
@@ -186,11 +189,19 @@ class PlayerViewModelTest {
     private fun createViewModel(
         controller: PlaybackController,
         transcriptRepository: TranscriptRepository,
-    ) = PlayerViewModel(
-        playbackController = controller,
-        transcriptRepository = transcriptRepository,
-        switchPlaybackLanguage = SwitchPlaybackLanguage(controller, transcriptRepository),
-    )
+    ): PlayerViewModel {
+        val preferences = FakePlayerPreferencesRepository()
+        return PlayerViewModel(
+            playbackController = controller,
+            transcriptRepository = transcriptRepository,
+            playbackPreferencesRepository = preferences,
+            switchPlaybackLanguage = SwitchPlaybackLanguage(
+                controller,
+                transcriptRepository,
+                preferences,
+            ),
+        )
+    }
 
     private fun playbackState(url: String, positionMs: Long = 0) = PlaybackState(
         currentTrackId = "track",
@@ -224,19 +235,19 @@ private class RecordingPlaybackController(initialState: PlaybackState) : Playbac
         tracks: List<Track>,
         selectedTrackId: String,
         playlistTitle: String?,
-        preferredLanguage: String?,
-        selectedLanguage: String?,
+        preferredLanguage: String,
     ) = Unit
 
     override fun updatePlaylistTracks(tracks: List<Track>) = Unit
 
-    override fun getCurrentTrackRendition(language: String) = PlaybackRenditionMetadata(
+    override fun getCurrentTrackRendition(preferredLanguage: String) = PlaybackRenditionMetadata(
+        language = preferredLanguage,
         timedTranscriptUrl = null,
         timedTranscriptFormat = null,
     )
 
-    override fun switchLanguage(language: String, startPositionMs: Long) {
-        lastLanguage = language
+    override fun switchLanguage(preferredLanguage: String, startPositionMs: Long) {
+        lastLanguage = preferredLanguage
     }
 
     override fun play() = Unit
@@ -258,6 +269,17 @@ private class RecordingPlaybackController(initialState: PlaybackState) : Playbac
 
     override fun setPlaybackSpeed(speed: Float) {
         lastSpeed = speed
+    }
+}
+
+private class FakePlayerPreferencesRepository : PlaybackPreferencesRepository {
+    override val bookmark = MutableStateFlow<PlaybackBookmark?>(null)
+    override val preferredLanguage = MutableStateFlow("en")
+
+    override suspend fun saveBookmark(bookmark: PlaybackBookmark) = Unit
+
+    override suspend fun savePreferredLanguage(language: String) {
+        preferredLanguage.value = language.trim().lowercase()
     }
 }
 

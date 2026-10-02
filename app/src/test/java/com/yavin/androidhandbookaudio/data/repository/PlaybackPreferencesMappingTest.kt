@@ -62,7 +62,7 @@ class PlaybackPreferencesMappingTest {
     }
 
     @Test
-    fun `old preferences without preferred language remain valid`() {
+    fun `old preferences without preferred language default to English`() {
         val preferences = preferencesOf(
             PlaybackPreferenceKeys.TRACK_ID to "shorts.kotlin",
             PlaybackPreferenceKeys.TITLE to "Kotlin",
@@ -70,7 +70,7 @@ class PlaybackPreferencesMappingTest {
             PlaybackPreferenceKeys.AUDIO_URL to "https://example.com/kotlin-ru.mp3",
         )
 
-        assertNull(preferences.toPreferredLanguage())
+        assertEquals("en", preferences.toPreferredLanguage())
         assertEquals("ru", preferences.toPlaybackBookmark()?.language)
     }
 }

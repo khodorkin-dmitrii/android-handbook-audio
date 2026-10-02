@@ -6,6 +6,7 @@ import androidx.media3.common.MediaMetadata
 import com.yavin.androidhandbookaudio.domain.model.PlaybackBookmark
 import com.yavin.androidhandbookaudio.domain.model.MediaRendition
 import com.yavin.androidhandbookaudio.domain.model.Track
+import com.yavin.androidhandbookaudio.domain.repository.DEFAULT_PLAYBACK_LANGUAGE
 
 data class PlaybackQueueItem(
     val trackId: String,
@@ -18,13 +19,10 @@ data class PlaybackQueueItem(
 )
 
 fun Track.selectRendition(
-    explicitlySelectedLanguage: String? = null,
-    preferredLanguage: String? = null,
+    preferredLanguage: String = DEFAULT_PLAYBACK_LANGUAGE,
 ): MediaRendition? {
-    val normalizedExplicit = explicitlySelectedLanguage?.trim()?.lowercase()
-    val normalizedPreferred = preferredLanguage?.trim()?.lowercase()
-    return normalizedExplicit?.let(renditions::get)
-        ?: normalizedPreferred?.let(renditions::get)
+    val normalizedPreferred = preferredLanguage.trim().lowercase()
+    return renditions[normalizedPreferred]
         ?: renditions["en"]
         ?: renditions.values.firstOrNull()
 }
@@ -32,14 +30,9 @@ fun Track.selectRendition(
 fun buildPlaybackQueue(
     tracks: List<Track>,
     playlistTitle: String? = null,
-    preferredLanguage: String? = null,
-    selectedTrackId: String? = null,
-    selectedLanguage: String? = null,
+    preferredLanguage: String = DEFAULT_PLAYBACK_LANGUAGE,
 ): List<PlaybackQueueItem> = tracks.sortedBy(Track::order).mapNotNull { track ->
-    val rendition = track.selectRendition(
-        explicitlySelectedLanguage = selectedLanguage.takeIf { track.id == selectedTrackId },
-        preferredLanguage = preferredLanguage,
-    ) ?: return@mapNotNull null
+    val rendition = track.selectRendition(preferredLanguage) ?: return@mapNotNull null
     track.toPlaybackQueueItem(rendition, playlistTitle)
 }
 
@@ -58,29 +51,6 @@ fun Track.toPlaybackQueueItem(
         timedTranscriptUrl = rendition.timedTranscriptUrl,
         timedTranscriptFormat = rendition.timedTranscriptFormat,
     )
-
-data class RenditionSwitchPlan(
-    val item: PlaybackQueueItem,
-    val playWhenReady: Boolean,
-    val playbackSpeed: Float,
-)
-
-fun createRenditionSwitchPlan(
-    track: Track,
-    language: String,
-    playWhenReady: Boolean,
-    playbackSpeed: Float,
-    playlistTitle: String? = null,
-): RenditionSwitchPlan? {
-    val rendition = track.selectRendition(explicitlySelectedLanguage = language)
-        ?.takeIf { it.language.equals(language.trim(), ignoreCase = true) }
-        ?: return null
-    return RenditionSwitchPlan(
-        item = track.toPlaybackQueueItem(rendition, playlistTitle),
-        playWhenReady = playWhenReady,
-        playbackSpeed = playbackSpeed,
-    )
-}
 
 fun PlaybackQueueItem.toMediaItem(): MediaItem = MediaItem.Builder()
     .setMediaId(trackId)

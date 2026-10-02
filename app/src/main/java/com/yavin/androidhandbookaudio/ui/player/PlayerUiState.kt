@@ -2,6 +2,7 @@ package com.yavin.androidhandbookaudio.ui.player
 
 import com.yavin.androidhandbookaudio.domain.model.TimedTranscript
 import com.yavin.androidhandbookaudio.domain.model.TranscriptSegment
+import com.yavin.androidhandbookaudio.domain.repository.DEFAULT_PLAYBACK_LANGUAGE
 import com.yavin.androidhandbookaudio.playback.PlaybackState
 
 sealed interface PlayerUiState {
@@ -12,6 +13,7 @@ sealed interface PlayerUiState {
         val title: String,
         val playlistTitle: String?,
         val language: String?,
+        val preferredLanguage: String,
         val availableLanguages: List<String>,
         val status: PlayerStatus,
         val positionMs: Long,
@@ -60,6 +62,7 @@ val PlaybackSpeedOptions = listOf(0.75f, 1f, 1.25f, 1.5f, 2f)
 
 fun PlaybackState.toPlayerUiState(
     transcript: TranscriptUiState = TranscriptUiState.Unavailable,
+    preferredLanguage: String = DEFAULT_PLAYBACK_LANGUAGE,
 ): PlayerUiState {
     val trackId = currentTrackId ?: return PlayerUiState.NoActiveMedia(error)
     val status = when {
@@ -73,7 +76,9 @@ fun PlaybackState.toPlayerUiState(
         title = currentTitle ?: "Unknown track",
         playlistTitle = currentPlaylistTitle,
         language = currentLanguage,
-        availableLanguages = availableLanguages,
+        preferredLanguage = preferredLanguage,
+        availableLanguages = (availableLanguages + preferredLanguage + listOfNotNull(currentLanguage))
+            .distinct(),
         status = status,
         positionMs = positionMs,
         durationMs = durationMs,

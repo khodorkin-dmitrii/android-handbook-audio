@@ -3,6 +3,8 @@ package com.yavin.androidhandbookaudio.ui.player
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yavin.androidhandbookaudio.domain.model.TimedTranscript
+import com.yavin.androidhandbookaudio.domain.repository.DEFAULT_PLAYBACK_LANGUAGE
+import com.yavin.androidhandbookaudio.domain.repository.PlaybackPreferencesRepository
 import com.yavin.androidhandbookaudio.domain.repository.TranscriptRepository
 import com.yavin.androidhandbookaudio.playback.PlaybackController
 import com.yavin.androidhandbookaudio.playback.SwitchPlaybackLanguage
@@ -25,6 +27,7 @@ import kotlinx.coroutines.launch
 class PlayerViewModel @Inject constructor(
     private val playbackController: PlaybackController,
     private val transcriptRepository: TranscriptRepository,
+    playbackPreferencesRepository: PlaybackPreferencesRepository,
     private val switchPlaybackLanguage: SwitchPlaybackLanguage,
 ) : ViewModel() {
     private val transcriptLoadState = MutableStateFlow<TranscriptLoadState>(
@@ -35,7 +38,8 @@ class PlayerViewModel @Inject constructor(
     val uiState: StateFlow<PlayerUiState> = combine(
         playbackController.state,
         transcriptLoadState,
-    ) { playbackState, transcriptState ->
+        playbackPreferencesRepository.preferredLanguage,
+    ) { playbackState, transcriptState, preferredLanguage ->
         val currentSource = playbackState.toTimedTranscriptSourceOrNull()
         val transcriptUiState = when {
             currentSource == null -> TranscriptUiState.Unavailable
@@ -47,12 +51,14 @@ class PlayerViewModel @Inject constructor(
             transcriptState is TranscriptLoadState.Error -> TranscriptUiState.Error()
             else -> TranscriptUiState.Unavailable
         }
-        playbackState.toPlayerUiState(transcriptUiState)
+        playbackState.toPlayerUiState(transcriptUiState, preferredLanguage)
     }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.Eagerly,
-            initialValue = playbackController.state.value.toPlayerUiState(),
+            initialValue = playbackController.state.value.toPlayerUiState(
+                preferredLanguage = DEFAULT_PLAYBACK_LANGUAGE,
+            ),
         )
 
     init {

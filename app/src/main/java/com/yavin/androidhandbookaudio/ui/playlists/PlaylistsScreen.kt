@@ -1,5 +1,7 @@
 package com.yavin.androidhandbookaudio.ui.playlists
 
+import android.content.res.Configuration
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,7 +9,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -21,7 +22,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.yavin.androidhandbookaudio.ui.theme.AndroidHandbookAudioTheme
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -117,5 +120,62 @@ private fun CenteredContent(
         contentAlignment = Alignment.Center,
     ) {
         content()
+    }
+}
+
+@Preview(
+    name = "Playlists — light",
+    showBackground = true,
+    widthDp = 393,
+    heightDp = 852,
+    uiMode = Configuration.UI_MODE_NIGHT_NO,
+)
+@Preview(
+    name = "Playlists — dark",
+    showBackground = true,
+    widthDp = 393,
+    heightDp = 852,
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+)
+@Composable
+private fun PlaylistsScreenPreview() {
+    AndroidHandbookAudioTheme(dynamicColor = false) {
+        PlaylistsScreen(
+            state = PlaylistsUiState.Content(
+                playlists = listOf(
+                    PlaylistUiModel(
+                        id = "shorts",
+                        title = "Short Audio Notes",
+                        languages = listOf("EN", "RU"),
+                    ),
+                    PlaylistUiModel(
+                        id = "deep-dives",
+                        title = "Android Deep Dives",
+                        languages = listOf("EN"),
+                    ),
+                ),
+            ),
+            onRetry = {},
+            onPlaylistClick = {},
+        )
+    }
+}
+
+@Preview(
+    name = "Playlist card",
+    showBackground = true,
+    widthDp = 393,
+)
+@Composable
+private fun PlaylistCardPreview() {
+    AndroidHandbookAudioTheme(dynamicColor = false) {
+        PlaylistCard(
+            playlist = PlaylistUiModel(
+                id = "shorts",
+                title = "Short Audio Notes",
+                languages = listOf("EN", "RU"),
+            ),
+            onClick = {},
+        )
     }
 }

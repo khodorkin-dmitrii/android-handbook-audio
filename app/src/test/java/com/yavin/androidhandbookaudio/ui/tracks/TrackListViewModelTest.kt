@@ -4,15 +4,12 @@ import com.yavin.androidhandbookaudio.domain.model.MediaRendition
 import com.yavin.androidhandbookaudio.domain.model.Playlist
 import com.yavin.androidhandbookaudio.domain.model.PlaylistManifest
 import com.yavin.androidhandbookaudio.domain.model.Track
-import com.yavin.androidhandbookaudio.domain.model.TimedTranscript
 import com.yavin.androidhandbookaudio.domain.repository.CatalogRepository
 import com.yavin.androidhandbookaudio.domain.model.PlaybackBookmark
 import com.yavin.androidhandbookaudio.domain.repository.PlaybackPreferencesRepository
-import com.yavin.androidhandbookaudio.domain.repository.TranscriptRepository
 import com.yavin.androidhandbookaudio.playback.PlaybackController
 import com.yavin.androidhandbookaudio.playback.PlaybackRenditionMetadata
 import com.yavin.androidhandbookaudio.playback.PlaybackState
-import com.yavin.androidhandbookaudio.playback.SwitchPlaybackLanguage
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -121,7 +118,7 @@ class TrackListViewModelTest {
     }
 
     @Test
-    fun `uses preferred language for default playback and explicit language for chip`() =
+    fun `uses global preferred language when opening a track`() =
         runTest(dispatcher) {
             val playbackController = FakePlaybackController()
             val preferences = FakePlaybackPreferencesRepository("ru")
@@ -135,36 +132,23 @@ class TrackListViewModelTest {
 
             viewModel.playOrPause("shorts.first")
             assertEquals("ru", playbackController.preferredLanguage)
-            assertEquals(null, playbackController.selectedLanguage)
-
-            viewModel.playLanguage("shorts.second", "en")
-            assertEquals("en", playbackController.selectedLanguage)
         }
 
     @Test
-    fun `one off current rendition switch does not change preferred language`() =
+    fun `uses English when no preference has been explicitly stored`() =
         runTest(dispatcher) {
             val playbackController = FakePlaybackController()
-            val preferences = FakePlaybackPreferencesRepository("en")
             val viewModel = createViewModel(
                 catalogRepository = FakeTrackCatalogRepository(Result.success(playlist)),
                 playbackController = playbackController,
-                playbackPreferencesRepository = preferences,
+                playbackPreferencesRepository = FakePlaybackPreferencesRepository(),
             )
             viewModel.loadPlaylist("shorts")
             advanceUntilIdle()
-            playbackController.mutableState.value = PlaybackState(
-                currentTrackId = "shorts.first",
-                currentLanguage = "en",
-                isPlaying = true,
-            )
-            advanceUntilIdle()
 
-            viewModel.playLanguage("shorts.first", "ru")
-            advanceUntilIdle()
+            viewModel.playOrPause("shorts.first")
 
-            assertEquals("ru", playbackController.switchedLanguage)
-            assertEquals("en", preferences.preferredLanguage.value)
+            assertEquals("en", playbackController.preferredLanguage)
         }
 
     private fun createViewModel(
@@ -175,10 +159,6 @@ class TrackListViewModelTest {
         catalogRepository = catalogRepository,
         playbackController = playbackController,
         playbackPreferencesRepository = playbackPreferencesRepository,
-        switchPlaybackLanguage = SwitchPlaybackLanguage(
-            playbackController = playbackController,
-            transcriptRepository = EmptyTranscriptRepository,
-        ),
     )
 
     private companion object {
@@ -215,29 +195,25 @@ private class FakePlaybackController : PlaybackController {
     var selectedTrackId: String? = null
     var playlistTitle: String? = null
     var preferredLanguage: String? = null
-    var selectedLanguage: String? = null
-    var switchedLanguage: String? = null
 
     override fun playPlaylist(
         tracks: List<Track>,
         selectedTrackId: String,
         playlistTitle: String?,
-        preferredLanguage: String?,
-        selectedLanguage: String?,
+        preferredLanguage: String,
     ) {
         this.selectedTrackId = selectedTrackId
         this.playlistTitle = playlistTitle
         this.preferredLanguage = preferredLanguage
-        this.selectedLanguage = selectedLanguage
     }
 
     override fun updatePlaylistTracks(tracks: List<Track>) = Unit
-    override fun getCurrentTrackRendition(language: String) = PlaybackRenditionMetadata(
+    override fun getCurrentTrackRendition(preferredLanguage: String) = PlaybackRenditionMetadata(
+        language = preferredLanguage,
         timedTranscriptUrl = null,
         timedTranscriptFormat = null,
     )
-    override fun switchLanguage(language: String, startPositionMs: Long) {
-        switchedLanguage = language
+    override fun switchLanguage(preferredLanguage: String, startPositionMs: Long) {
     }
 
     override fun play() = Unit
@@ -249,13 +225,8 @@ private class FakePlaybackController : PlaybackController {
     override fun setPlaybackSpeed(speed: Float) = Unit
 }
 
-private data object EmptyTranscriptRepository : TranscriptRepository {
-    override suspend fun getTimedTranscript(url: String, format: String) =
-        TimedTranscript(emptyList())
-}
-
 private class FakePlaybackPreferencesRepository(
-    initialPreferredLanguage: String? = null,
+    initialPreferredLanguage: String = "en",
 ) : PlaybackPreferencesRepository {
     override val bookmark = MutableStateFlow<PlaybackBookmark?>(null)
     override val preferredLanguage = MutableStateFlow(initialPreferredLanguage)

@@ -5,8 +5,6 @@ sealed interface TrackListUiState {
 
     data class Content(
         val playlistTitle: String,
-        val preferredLanguage: String?,
-        val availableLanguages: List<String>,
         val tracks: List<TrackUiModel>,
     ) : TrackListUiState
 
@@ -20,7 +18,6 @@ data class TrackUiModel(
     val order: Int,
     val title: String,
     val languages: List<String>,
-    val activeLanguage: String?,
     val isCurrent: Boolean,
     val isPlaying: Boolean,
     val playbackStatus: TrackPlaybackStatus?,

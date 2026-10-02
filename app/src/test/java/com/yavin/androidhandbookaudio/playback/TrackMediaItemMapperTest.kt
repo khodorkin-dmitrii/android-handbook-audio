@@ -7,31 +7,23 @@ import org.junit.Test
 
 class TrackMediaItemMapperTest {
     @Test
-    fun `explicit language wins when available`() {
-        assertEquals("ru", track.selectRendition("ru", "en")?.language)
-    }
-
-    @Test
-    fun `unavailable explicit language falls back to preferred language`() {
-        assertEquals("ru", track.selectRendition("de", "ru")?.language)
-    }
-
-    @Test
     fun `available preferred language is selected`() {
         assertEquals("ru", track.selectRendition(preferredLanguage = "ru")?.language)
     }
 
     @Test
     fun `unavailable preferred language falls back to English`() {
-        assertEquals("en", track.selectRendition(preferredLanguage = "de")?.language)
+        val englishOnly = track.copy(renditions = mapOf("en" to rendition("en")))
+
+        assertEquals("en", englishOnly.selectRendition(preferredLanguage = "ru")?.language)
     }
 
     @Test
-    fun `first rendition is used when explicit preferred and English are unavailable`() {
+    fun `first rendition is used when preferred and English are unavailable`() {
         assertEquals(
             "fr",
             track.copy(renditions = mapOf("fr" to rendition("fr")))
-                .selectRendition("de", "ru")
+                .selectRendition("ru")
                 ?.language,
         )
     }
@@ -72,58 +64,35 @@ class TrackMediaItemMapperTest {
     }
 
     @Test
-    fun `explicit language applies only to selected logical track`() {
+    fun `preferred language applies to every track in queue`() {
         val queue = buildPlaybackQueue(
             tracks = listOf(track.copy(id = "first"), track.copy(id = "second", order = 2)),
-            preferredLanguage = "en",
-            selectedTrackId = "second",
-            selectedLanguage = "ru",
+            preferredLanguage = "ru",
         )
 
-        assertEquals(listOf("en", "ru"), queue.map(PlaybackQueueItem::language))
+        assertEquals(listOf("ru", "ru"), queue.map(PlaybackQueueItem::language))
     }
 
     @Test
-    fun `rendition switch keeps logical ID updates media and resets position preserving state`() {
-        val plan = createRenditionSwitchPlan(
-            track = track,
-            language = "ru",
-            playWhenReady = true,
-            playbackSpeed = 1.5f,
-            playlistTitle = "Short Audio Notes",
+    fun `queue uses preferred language with per-track English and first-rendition fallback`() {
+        val queue = buildPlaybackQueue(
+            tracks = listOf(
+                track.copy(id = "has-ru", order = 1),
+                track.copy(
+                    id = "english-only",
+                    order = 2,
+                    renditions = mapOf("en" to rendition("en")),
+                ),
+                track.copy(
+                    id = "french-only",
+                    order = 3,
+                    renditions = mapOf("fr" to rendition("fr")),
+                ),
+            ),
+            preferredLanguage = "ru",
         )
 
-        requireNotNull(plan)
-        assertEquals("track", plan.item.trackId)
-        assertEquals("Short Audio Notes", plan.item.playlistTitle)
-        assertEquals("ru", plan.item.language)
-        assertEquals("https://example.com/ru.mp3", plan.item.audioUrl)
-        assertEquals("https://example.com/ru.srt", plan.item.timedTranscriptUrl)
-        assertEquals("srt", plan.item.timedTranscriptFormat)
-        assertEquals(true, plan.playWhenReady)
-        assertEquals(1.5f, plan.playbackSpeed)
-    }
-
-    @Test
-    fun `paused rendition switch remains paused`() {
-        val plan = createRenditionSwitchPlan(track, "ru", false, 1.25f)
-
-        requireNotNull(plan)
-        assertEquals(false, plan.playWhenReady)
-        assertEquals(1.25f, plan.playbackSpeed)
-    }
-
-    @Test
-    fun `rendition without transcript maps transcript metadata to null`() {
-        val noTranscriptTrack = track.copy(
-            renditions = track.renditions + ("ru" to rendition("ru")),
-        )
-
-        val plan = createRenditionSwitchPlan(noTranscriptTrack, "ru", true, 1f)
-
-        requireNotNull(plan)
-        assertEquals(null, plan.item.timedTranscriptUrl)
-        assertEquals(null, plan.item.timedTranscriptFormat)
+        assertEquals(listOf("ru", "en", "fr"), queue.map(PlaybackQueueItem::language))
     }
 
     private companion object {

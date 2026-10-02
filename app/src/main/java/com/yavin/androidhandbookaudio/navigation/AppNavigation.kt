@@ -86,8 +86,6 @@ fun AndroidHandbookAudioNavHost(
                         },
                         onRetry = { trackListViewModel.retry(key.playlistId) },
                         onPlayOrPause = trackListViewModel::playOrPause,
-                        onLanguageSelected = trackListViewModel::playLanguage,
-                        onPreferredLanguageSelected = trackListViewModel::setPreferredLanguage,
                     )
                 }
                 entry<PlayerKey> {

@@ -55,6 +55,19 @@ class PlayerUiStateTest {
     }
 
     @Test
+    fun `keeps preferred language distinct from fallback rendition`() {
+        val state = PlaybackState(
+            currentTrackId = "english-only",
+            currentLanguage = "en",
+            availableLanguages = listOf("en"),
+        ).toPlayerUiState(preferredLanguage = "ru") as PlayerUiState.Active
+
+        assertEquals("ru", state.preferredLanguage)
+        assertEquals("en", state.language)
+        assertEquals(listOf("en", "ru"), state.availableLanguages)
+    }
+
+    @Test
     fun `mini player is visible only for active media and maps progress`() {
         assertNull(PlaybackState().toPlayerUiState().toMiniPlayerUiState())
 

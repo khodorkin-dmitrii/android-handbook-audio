@@ -3,6 +3,8 @@ package com.yavin.androidhandbookaudio.playback
 import com.yavin.androidhandbookaudio.domain.model.TimedTranscript
 import com.yavin.androidhandbookaudio.domain.model.Track
 import com.yavin.androidhandbookaudio.domain.model.TranscriptSegment
+import com.yavin.androidhandbookaudio.domain.model.PlaybackBookmark
+import com.yavin.androidhandbookaudio.domain.repository.PlaybackPreferencesRepository
 import com.yavin.androidhandbookaudio.domain.repository.TranscriptRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -46,6 +48,7 @@ class SwitchPlaybackLanguageTest {
         val useCase = SwitchPlaybackLanguage(
             controller,
             MapTranscriptRepository(mapOf("ru.srt" to target)),
+            RecordingPlaybackPreferencesRepository(),
         )
 
         useCase("ru", loadedCurrentTranscript = current)
@@ -63,11 +66,32 @@ class SwitchPlaybackLanguageTest {
         val useCase = SwitchPlaybackLanguage(
             controller,
             MapTranscriptRepository(mapOf("ru.srt" to transcript(2_000))),
+            RecordingPlaybackPreferencesRepository(),
         )
 
         useCase("ru", loadedCurrentTranscript = transcript(1_000, 5_000))
 
         assertEquals(0L, controller.switchPositionMs)
+    }
+
+    @Test
+    fun `persists global preference even when current rendition falls back`() = runTest {
+        val preferences = RecordingPlaybackPreferencesRepository()
+        val controller = RecordingLanguageController(
+            state = playbackState(positionMs = 9_500),
+            target = targetMetadata().copy(language = "en"),
+        )
+        val useCase = SwitchPlaybackLanguage(
+            controller,
+            MapTranscriptRepository(emptyMap()),
+            preferences,
+        )
+
+        useCase("ru")
+
+        assertEquals("ru", preferences.preferredLanguage.value)
+        assertEquals("ru", controller.switchedLanguage)
+        assertEquals(9_500L, controller.switchPositionMs)
     }
 
     private fun playbackState(positionMs: Long) = PlaybackState(
@@ -79,6 +103,7 @@ class SwitchPlaybackLanguageTest {
     )
 
     private fun targetMetadata() = PlaybackRenditionMetadata(
+        language = "ru",
         timedTranscriptUrl = "https://example.com/ru.srt",
         timedTranscriptFormat = "srt",
     )
@@ -99,10 +124,10 @@ private class RecordingLanguageController(
     var switchedLanguage: String? = null
     var switchPositionMs: Long? = null
 
-    override fun getCurrentTrackRendition(language: String) = target
+    override fun getCurrentTrackRendition(preferredLanguage: String) = target
 
-    override fun switchLanguage(language: String, startPositionMs: Long) {
-        switchedLanguage = language
+    override fun switchLanguage(preferredLanguage: String, startPositionMs: Long) {
+        switchedLanguage = preferredLanguage
         switchPositionMs = startPositionMs
     }
 
@@ -110,8 +135,7 @@ private class RecordingLanguageController(
         tracks: List<Track>,
         selectedTrackId: String,
         playlistTitle: String?,
-        preferredLanguage: String?,
-        selectedLanguage: String?,
+        preferredLanguage: String,
     ) = Unit
 
     override fun updatePlaylistTracks(tracks: List<Track>) = Unit
@@ -122,6 +146,17 @@ private class RecordingLanguageController(
     override fun next() = Unit
     override fun previous() = Unit
     override fun setPlaybackSpeed(speed: Float) = Unit
+}
+
+private class RecordingPlaybackPreferencesRepository : PlaybackPreferencesRepository {
+    override val bookmark = MutableStateFlow<PlaybackBookmark?>(null)
+    override val preferredLanguage = MutableStateFlow("en")
+
+    override suspend fun saveBookmark(bookmark: PlaybackBookmark) = Unit
+
+    override suspend fun savePreferredLanguage(language: String) {
+        preferredLanguage.value = language.trim().lowercase()
+    }
 }
 
 private class MapTranscriptRepository(
