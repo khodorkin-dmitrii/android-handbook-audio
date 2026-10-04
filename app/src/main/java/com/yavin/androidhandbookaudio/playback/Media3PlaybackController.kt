@@ -42,6 +42,7 @@ class Media3PlaybackController @Inject constructor(
     private var controller: MediaController? = null
     private var pendingPlayback: PendingPlayback? = null
     private var languagesByTrackId: Map<String, String> = emptyMap()
+    private var playlistIdsByTrackId: Map<String, String> = emptyMap()
     private var tracksById: Map<String, Track> = emptyMap()
     private var playbackError: String? = null
     private var restoredBookmark: PlaybackBookmark? = null
@@ -125,14 +126,16 @@ class Media3PlaybackController @Inject constructor(
     override fun playPlaylist(
         tracks: List<Track>,
         selectedTrackId: String,
+        playlistId: String,
         playlistTitle: String?,
         preferredLanguage: String,
     ) {
         hasUserRequestedPlayback = true
-        updatePlaylistTracks(tracks)
+        updatePlaylistTracks(playlistId, tracks)
         val pending = PendingPlayback(
             queue = buildPlaybackQueue(
                 tracks = tracks,
+                playlistId = playlistId,
                 playlistTitle = playlistTitle,
                 preferredLanguage = preferredLanguage,
             ),
@@ -145,9 +148,15 @@ class Media3PlaybackController @Inject constructor(
         }
     }
 
-    override fun updatePlaylistTracks(tracks: List<Track>) {
+    override fun updatePlaylistTracks(playlistId: String, tracks: List<Track>) {
         tracksById = tracksById + tracks.associateBy(Track::id)
+        playlistIdsByTrackId = playlistIdsByTrackId + tracks.associate { it.id to playlistId }
         updateState(controller)
+        controller?.let { mediaController ->
+            if (tracks.any { it.id == mediaController.currentMediaItem?.mediaId }) {
+                checkpointPlayback(mediaController)
+            }
+        }
     }
 
     override fun getCurrentTrackRendition(
@@ -181,6 +190,7 @@ class Media3PlaybackController @Inject constructor(
             .ifEmpty { listOf(track) }
         val queue = buildPlaybackQueue(
             tracks = queueTracks,
+            playlistId = playlistIdsByTrackId[currentTrackId],
             playlistTitle = playlistTitle,
             preferredLanguage = preferredLanguage,
         )
@@ -272,6 +282,9 @@ class Media3PlaybackController @Inject constructor(
         _state.value = PlaybackState(
             currentTrackId = currentTrackId,
             currentTitle = player.currentMediaItem?.mediaMetadata?.title?.toString(),
+            currentPlaylistId = player.currentMediaItem?.mediaMetadata?.extras
+                ?.getString(PLAYLIST_ID_KEY)
+                ?: currentTrackId?.let(playlistIdsByTrackId::get),
             currentPlaylistTitle = player.currentMediaItem?.mediaMetadata?.albumTitle?.toString(),
             currentLanguage = player.currentMediaItem?.mediaMetadata?.subtitle
                 ?.toString()
@@ -306,6 +319,9 @@ class Media3PlaybackController @Inject constructor(
         ) return
 
         languagesByTrackId = mapOf(bookmark.trackId to bookmark.language)
+        bookmark.playlistId?.let { playlistId ->
+            playlistIdsByTrackId = mapOf(bookmark.trackId to playlistId)
+        }
         mediaController.setMediaItem(bookmark.toMediaItem(), bookmark.positionMs)
         mediaController.setPlaybackSpeed(bookmark.playbackSpeed)
         mediaController.prepare()
@@ -321,6 +337,8 @@ class Media3PlaybackController @Inject constructor(
         val snapshot = PlaybackBookmark(
             trackId = mediaItem.mediaId,
             title = mediaItem.mediaMetadata.title?.toString() ?: return,
+            playlistId = mediaItem.mediaMetadata.extras?.getString(PLAYLIST_ID_KEY)
+                ?: playlistIdsByTrackId[mediaItem.mediaId],
             playlistTitle = mediaItem.mediaMetadata.albumTitle?.toString(),
             language = language,
             audioUrl = localConfiguration.uri.toString(),

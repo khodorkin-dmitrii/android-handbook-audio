@@ -156,11 +156,12 @@ private class RecordingLanguageController(
     override fun playPlaylist(
         tracks: List<Track>,
         selectedTrackId: String,
+        playlistId: String,
         playlistTitle: String?,
         preferredLanguage: String,
     ) = Unit
 
-    override fun updatePlaylistTracks(tracks: List<Track>) = Unit
+    override fun updatePlaylistTracks(playlistId: String, tracks: List<Track>) = Unit
     override fun play() = Unit
     override fun pause() = Unit
     override fun retry() = Unit

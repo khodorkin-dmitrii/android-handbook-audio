@@ -39,6 +39,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -48,6 +49,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -58,9 +61,12 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yavin.androidhandbookaudio.R
+import com.yavin.androidhandbookaudio.domain.model.AppThemeMode
 import com.yavin.androidhandbookaudio.domain.model.TranscriptSegment
 import com.yavin.androidhandbookaudio.domain.model.TranscriptStyleRange
 import com.yavin.androidhandbookaudio.domain.model.TranscriptTextStyle
+import com.yavin.androidhandbookaudio.ui.components.PlayerAmbientBackground
+import com.yavin.androidhandbookaudio.ui.components.ThemeModeAction
 import com.yavin.androidhandbookaudio.ui.theme.AndroidHandbookAudioTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,41 +83,62 @@ fun PlayerScreen(
     onSpeedSelected: (Float) -> Unit,
     onLanguageSelected: (String) -> Unit,
     onTranscriptSegmentClick: (Long) -> Unit,
+    themeMode: AppThemeMode,
+    onCycleThemeMode: (Offset) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val screenTitle = (state as? PlayerUiState.Active)?.playlistTitle ?: "Now playing"
-    Scaffold(
-        modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { Text(screenTitle) },
-                navigationIcon = {
-                    TextButton(onClick = onBack) {
-                        Text("Back")
-                    }
-                },
-            )
-        },
-    ) { contentPadding ->
-        when (state) {
-            is PlayerUiState.NoActiveMedia -> NoActivePlayer(
-                errorMessage = state.errorMessage,
-                modifier = Modifier.padding(contentPadding),
-            )
+    val playbackProgress = (state as? PlayerUiState.Active)?.let { active ->
+        active.durationMs
+            ?.takeIf { it > 0 }
+            ?.let { duration -> (active.positionMs.toFloat() / duration).coerceIn(0f, 1f) }
+    }
+    Box(modifier = modifier) {
+        PlayerAmbientBackground(
+            progress = playbackProgress,
+            modifier = Modifier.matchParentSize(),
+        )
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.onBackground,
+            topBar = {
+                TopAppBar(
+                    title = { Text(screenTitle) },
+                    navigationIcon = {
+                        TextButton(onClick = onBack) {
+                            Text("Back")
+                        }
+                    },
+                    actions = {
+                        ThemeModeAction(themeMode, onCycleThemeMode)
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                    ),
+                )
+            },
+        ) { contentPadding ->
+            when (state) {
+                is PlayerUiState.NoActiveMedia -> NoActivePlayer(
+                    errorMessage = state.errorMessage,
+                    modifier = Modifier.padding(contentPadding),
+                )
 
-            is PlayerUiState.Active -> ActivePlayer(
-                state = state,
-                onPlayOrPause = onPlayOrPause,
-                onSeekTo = onSeekTo,
-                onSeekBackward = onSeekBackward,
-                onSeekForward = onSeekForward,
-                onPrevious = onPrevious,
-                onNext = onNext,
-                onSpeedSelected = onSpeedSelected,
-                onLanguageSelected = onLanguageSelected,
-                onTranscriptSegmentClick = onTranscriptSegmentClick,
-                modifier = Modifier.padding(contentPadding),
-            )
+                is PlayerUiState.Active -> ActivePlayer(
+                    state = state,
+                    onPlayOrPause = onPlayOrPause,
+                    onSeekTo = onSeekTo,
+                    onSeekBackward = onSeekBackward,
+                    onSeekForward = onSeekForward,
+                    onPrevious = onPrevious,
+                    onNext = onNext,
+                    onSpeedSelected = onSpeedSelected,
+                    onLanguageSelected = onLanguageSelected,
+                    onTranscriptSegmentClick = onTranscriptSegmentClick,
+                    modifier = Modifier.padding(contentPadding),
+                )
+            }
         }
     }
 }
@@ -565,6 +592,8 @@ private fun PlayerScreenPreview() {
             onSpeedSelected = {},
             onLanguageSelected = {},
             onTranscriptSegmentClick = {},
+            themeMode = AppThemeMode.SYSTEM,
+            onCycleThemeMode = { _ -> },
         )
     }
 }

@@ -54,7 +54,7 @@ class TrackListViewModel @Inject constructor(
             try {
                 val loadedPlaylist = catalogRepository.getPlaylist(playlistId)
                 playlist = loadedPlaylist
-                playbackController.updatePlaylistTracks(loadedPlaylist.tracks)
+                playbackController.updatePlaylistTracks(loadedPlaylist.id, loadedPlaylist.tracks)
                 showPlaylist(loadedPlaylist)
             } catch (cancellation: CancellationException) {
                 throw cancellation
@@ -83,6 +83,7 @@ class TrackListViewModel @Inject constructor(
         playbackController.playPlaylist(
             tracks = loadedPlaylist.tracks,
             selectedTrackId = trackId,
+            playlistId = loadedPlaylist.id,
             playlistTitle = loadedPlaylist.displayTitle(),
             preferredLanguage = preferredLanguage,
         )

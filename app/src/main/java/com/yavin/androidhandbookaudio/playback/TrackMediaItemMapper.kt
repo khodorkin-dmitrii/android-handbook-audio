@@ -11,6 +11,7 @@ import com.yavin.androidhandbookaudio.domain.repository.DEFAULT_PLAYBACK_LANGUAG
 data class PlaybackQueueItem(
     val trackId: String,
     val title: String,
+    val playlistId: String? = null,
     val playlistTitle: String? = null,
     val language: String,
     val audioUrl: String,
@@ -29,15 +30,17 @@ fun Track.selectRendition(
 
 fun buildPlaybackQueue(
     tracks: List<Track>,
+    playlistId: String? = null,
     playlistTitle: String? = null,
     preferredLanguage: String = DEFAULT_PLAYBACK_LANGUAGE,
 ): List<PlaybackQueueItem> = tracks.sortedBy(Track::order).mapNotNull { track ->
     val rendition = track.selectRendition(preferredLanguage) ?: return@mapNotNull null
-    track.toPlaybackQueueItem(rendition, playlistTitle)
+    track.toPlaybackQueueItem(rendition, playlistId, playlistTitle)
 }
 
 fun Track.toPlaybackQueueItem(
     rendition: MediaRendition,
+    playlistId: String? = null,
     playlistTitle: String? = null,
 ): PlaybackQueueItem =
     PlaybackQueueItem(
@@ -45,6 +48,7 @@ fun Track.toPlaybackQueueItem(
         title = titles[rendition.language]
             ?: titles["en"]
             ?: titles.values.first(),
+        playlistId = playlistId,
         playlistTitle = playlistTitle,
         language = rendition.language,
         audioUrl = rendition.audioUrl,
@@ -62,6 +66,7 @@ fun PlaybackQueueItem.toMediaItem(): MediaItem = MediaItem.Builder()
             .setSubtitle(language.uppercase())
             .setExtras(
                 Bundle().apply {
+                    playlistId?.let { putString(PLAYLIST_ID_KEY, it) }
                     timedTranscriptUrl?.let { putString(TIMED_TRANSCRIPT_URL_KEY, it) }
                     timedTranscriptFormat?.let { putString(TIMED_TRANSCRIPT_FORMAT_KEY, it) }
                 },
@@ -73,6 +78,7 @@ fun PlaybackQueueItem.toMediaItem(): MediaItem = MediaItem.Builder()
 fun PlaybackBookmark.toMediaItem(): MediaItem = PlaybackQueueItem(
     trackId = trackId,
     title = title,
+    playlistId = playlistId,
     playlistTitle = playlistTitle,
     language = language,
     audioUrl = audioUrl,
@@ -84,3 +90,5 @@ internal const val TIMED_TRANSCRIPT_URL_KEY =
     "com.yavin.androidhandbookaudio.media.TIMED_TRANSCRIPT_URL"
 internal const val TIMED_TRANSCRIPT_FORMAT_KEY =
     "com.yavin.androidhandbookaudio.media.TIMED_TRANSCRIPT_FORMAT"
+internal const val PLAYLIST_ID_KEY =
+    "com.yavin.androidhandbookaudio.media.PLAYLIST_ID"

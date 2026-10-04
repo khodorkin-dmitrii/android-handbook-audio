@@ -2,6 +2,8 @@ package com.yavin.androidhandbookaudio.ui.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.yavin.androidhandbookaudio.domain.model.PlaylistManifest
+import com.yavin.androidhandbookaudio.domain.repository.CatalogRepository
 import com.yavin.androidhandbookaudio.domain.model.TimedTranscript
 import com.yavin.androidhandbookaudio.domain.repository.DEFAULT_PLAYBACK_LANGUAGE
 import com.yavin.androidhandbookaudio.domain.repository.PlaybackPreferencesRepository
@@ -26,6 +28,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     private val playbackController: PlaybackController,
+    private val catalogRepository: CatalogRepository,
     private val transcriptRepository: TranscriptRepository,
     playbackPreferencesRepository: PlaybackPreferencesRepository,
     private val switchPlaybackLanguage: SwitchPlaybackLanguage,
@@ -62,6 +65,26 @@ class PlayerViewModel @Inject constructor(
         )
 
     init {
+        viewModelScope.launch {
+            playbackController.state
+                .map { playbackState ->
+                    playbackState.currentTrackId
+                        ?.takeIf { playbackState.availableLanguages.isEmpty() }
+                        ?.let { trackId ->
+                            PlaybackMetadataRequest(
+                                trackId = trackId,
+                                playlistId = playbackState.currentPlaylistId,
+                            )
+                        }
+                }
+                .distinctUntilChanged()
+                .collectLatest { request ->
+                    request ?: return@collectLatest
+                    findPlaylistFor(request)?.let { playlist ->
+                        playbackController.updatePlaylistTracks(playlist.id, playlist.tracks)
+                    }
+                }
+        }
         viewModelScope.launch {
             playbackController.state
                 .map { playbackState -> playbackState.toTimedTranscriptSourceOrNull() }
@@ -148,6 +171,34 @@ class PlayerViewModel @Inject constructor(
         const val SEEK_INTERVAL_MS = 10_000L
     }
 
+    private suspend fun findPlaylistFor(request: PlaybackMetadataRequest): PlaylistManifest? {
+        request.playlistId?.let { playlistId ->
+            return loadPlaylistOrNull(playlistId)
+                ?.takeIf { playlist -> playlist.tracks.any { it.id == request.trackId } }
+        }
+
+        val playlists = try {
+            catalogRepository.getPlaylists()
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            return null
+        }
+        playlists.forEach { playlist ->
+            val manifest = loadPlaylistOrNull(playlist.id) ?: return@forEach
+            if (manifest.tracks.any { it.id == request.trackId }) return manifest
+        }
+        return null
+    }
+
+    private suspend fun loadPlaylistOrNull(playlistId: String): PlaylistManifest? = try {
+        catalogRepository.getPlaylist(playlistId)
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (_: Exception) {
+        null
+    }
+
     private sealed interface TranscriptLoadState {
         val source: TimedTranscriptSource?
 
@@ -161,4 +212,9 @@ class PlayerViewModel @Inject constructor(
         ) : TranscriptLoadState
         data class Error(override val source: TimedTranscriptSource) : TranscriptLoadState
     }
+
+    private data class PlaybackMetadataRequest(
+        val trackId: String,
+        val playlistId: String?,
+    )
 }

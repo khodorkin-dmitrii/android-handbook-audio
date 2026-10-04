@@ -36,6 +36,12 @@ fun MiniPlayer(
             .clickable(onClick = dropUnlessResumed { onOpenPlayer() }),
     ) {
         Column {
+            state.progress?.let { progress ->
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -63,12 +69,6 @@ fun MiniPlayer(
                 TextButton(onClick = onPlayOrPause) {
                     Text(if (state.isPlaying) "Pause" else "Play")
                 }
-            }
-            state.progress?.let { progress ->
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier.fillMaxWidth(),
-                )
             }
         }
     }

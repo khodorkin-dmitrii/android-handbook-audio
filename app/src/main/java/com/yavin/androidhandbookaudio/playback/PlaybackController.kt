@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 data class PlaybackState(
     val currentTrackId: String? = null,
     val currentTitle: String? = null,
+    val currentPlaylistId: String? = null,
     val currentPlaylistTitle: String? = null,
     val currentLanguage: String? = null,
     val availableLanguages: List<String> = emptyList(),
@@ -34,11 +35,12 @@ interface PlaybackController {
     fun playPlaylist(
         tracks: List<Track>,
         selectedTrackId: String,
+        playlistId: String,
         playlistTitle: String? = null,
         preferredLanguage: String,
     )
 
-    fun updatePlaylistTracks(tracks: List<Track>)
+    fun updatePlaylistTracks(playlistId: String, tracks: List<Track>)
 
     fun getCurrentTrackRendition(preferredLanguage: String): PlaybackRenditionMetadata?
 

@@ -101,6 +101,7 @@ class TrackListViewModelTest {
 
         viewModel.playOrPause("shorts.second")
         assertEquals("shorts.second", playbackController.selectedTrackId)
+        assertEquals("shorts", playbackController.playlistId)
         assertEquals("Short Audio Notes", playbackController.playlistTitle)
         playbackController.mutableState.value = PlaybackState(
             currentTrackId = "shorts.second",
@@ -193,21 +194,24 @@ private class FakePlaybackController : PlaybackController {
     val mutableState = MutableStateFlow(PlaybackState())
     override val state: StateFlow<PlaybackState> = mutableState
     var selectedTrackId: String? = null
+    var playlistId: String? = null
     var playlistTitle: String? = null
     var preferredLanguage: String? = null
 
     override fun playPlaylist(
         tracks: List<Track>,
         selectedTrackId: String,
+        playlistId: String,
         playlistTitle: String?,
         preferredLanguage: String,
     ) {
         this.selectedTrackId = selectedTrackId
+        this.playlistId = playlistId
         this.playlistTitle = playlistTitle
         this.preferredLanguage = preferredLanguage
     }
 
-    override fun updatePlaylistTracks(tracks: List<Track>) = Unit
+    override fun updatePlaylistTracks(playlistId: String, tracks: List<Track>) = Unit
     override fun getCurrentTrackRendition(preferredLanguage: String) = PlaybackRenditionMetadata(
         language = preferredLanguage,
         timedTranscriptUrl = null,

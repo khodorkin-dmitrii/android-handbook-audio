@@ -19,12 +19,18 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
+import com.yavin.androidhandbookaudio.domain.model.AppThemeMode
+import com.yavin.androidhandbookaudio.ui.components.PlayerAmbientBackground
+import com.yavin.androidhandbookaudio.ui.components.ThemeModeAction
 import com.yavin.androidhandbookaudio.ui.theme.AndroidHandbookAudioTheme
 
 @Composable
@@ -33,48 +39,69 @@ fun PlaylistsScreen(
     state: PlaylistsUiState,
     onRetry: () -> Unit,
     onPlaylistClick: (String) -> Unit,
+    playbackProgress: Float? = null,
+    themeMode: AppThemeMode,
+    onCycleThemeMode: (Offset) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Scaffold(
-        modifier = modifier,
-        topBar = { TopAppBar(title = { Text("Playlists") }) },
-    ) { contentPadding ->
-        when (state) {
-            PlaylistsUiState.Loading -> CenteredContent(contentPadding) {
-                CircularProgressIndicator()
-            }
+    Box(modifier = modifier) {
+        PlayerAmbientBackground(
+            progress = playbackProgress,
+            modifier = Modifier.matchParentSize(),
+        )
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.onBackground,
+            topBar = {
+                TopAppBar(
+                    title = { Text("Playlists") },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                    ),
+                    actions = {
+                        ThemeModeAction(themeMode, onCycleThemeMode)
+                    },
+                )
+            },
+        ) { contentPadding ->
+            when (state) {
+                PlaylistsUiState.Loading -> CenteredContent(contentPadding) {
+                    CircularProgressIndicator()
+                }
 
-            PlaylistsUiState.Empty -> CenteredContent(contentPadding) {
-                Text("No playlists available")
-            }
+                PlaylistsUiState.Empty -> CenteredContent(contentPadding) {
+                    Text("No playlists available")
+                }
 
-            PlaylistsUiState.Error -> CenteredContent(contentPadding) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Text("Could not load playlists")
-                    Button(onClick = onRetry) {
-                        Text("Retry")
+                PlaylistsUiState.Error -> CenteredContent(contentPadding) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text("Could not load playlists")
+                        Button(onClick = onRetry) {
+                            Text("Retry")
+                        }
                     }
                 }
-            }
 
-            is PlaylistsUiState.Content -> LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = 16.dp,
-                    top = contentPadding.calculateTopPadding() + 16.dp,
-                    end = 16.dp,
-                    bottom = contentPadding.calculateBottomPadding() + 16.dp,
-                ),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(state.playlists, key = PlaylistUiModel::id) { playlist ->
-                    PlaylistCard(
-                        playlist = playlist,
-                        onClick = dropUnlessResumed { onPlaylistClick(playlist.id) },
-                    )
+                is PlaylistsUiState.Content -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        top = contentPadding.calculateTopPadding() + 16.dp,
+                        end = 16.dp,
+                        bottom = contentPadding.calculateBottomPadding() + 16.dp,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(state.playlists, key = PlaylistUiModel::id) { playlist ->
+                        PlaylistCard(
+                            playlist = playlist,
+                            onClick = dropUnlessResumed { onPlaylistClick(playlist.id) },
+                        )
+                    }
                 }
             }
         }
@@ -158,6 +185,8 @@ private fun PlaylistsScreenPreview() {
             ),
             onRetry = {},
             onPlaylistClick = {},
+            themeMode = AppThemeMode.SYSTEM,
+            onCycleThemeMode = { _ -> },
         )
     }
 }

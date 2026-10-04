@@ -51,10 +51,12 @@ class TrackMediaItemMapperTest {
     fun `maps track to queue item with stable logical ID title language and URL`() {
         val queueItem = buildPlaybackQueue(
             tracks = listOf(track),
+            playlistId = "shorts",
             playlistTitle = "Short Audio Notes",
         ).single()
 
         assertEquals("track", queueItem.trackId)
+        assertEquals("shorts", queueItem.playlistId)
         assertEquals("Track", queueItem.title)
         assertEquals("Short Audio Notes", queueItem.playlistTitle)
         assertEquals("en", queueItem.language)

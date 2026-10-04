@@ -20,11 +20,17 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.yavin.androidhandbookaudio.domain.model.AppThemeMode
+import com.yavin.androidhandbookaudio.ui.components.PlayerAmbientBackground
+import com.yavin.androidhandbookaudio.ui.components.ThemeModeAction
 import com.yavin.androidhandbookaudio.ui.theme.AndroidHandbookAudioTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,58 +40,75 @@ fun TrackListScreen(
     onBack: () -> Unit,
     onRetry: () -> Unit,
     onPlayOrPause: (String) -> Unit,
+    playbackProgress: Float? = null,
+    themeMode: AppThemeMode,
+    onCycleThemeMode: (Offset) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val title = (state as? TrackListUiState.Content)?.playlistTitle ?: "Tracks"
-    Scaffold(
-        modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { Text(title) },
-                navigationIcon = {
-                    TextButton(onClick = onBack) {
-                        Text("Back")
-                    }
-                },
-            )
-        },
-    ) { contentPadding ->
-        when (state) {
-            TrackListUiState.Loading -> CenteredTrackContent(contentPadding) {
-                CircularProgressIndicator()
-            }
+    Box(modifier = modifier) {
+        PlayerAmbientBackground(
+            progress = playbackProgress,
+            modifier = Modifier.matchParentSize(),
+        )
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.onBackground,
+            topBar = {
+                TopAppBar(
+                    title = { Text(title) },
+                    navigationIcon = {
+                        TextButton(onClick = onBack) {
+                            Text("Back")
+                        }
+                    },
+                    actions = {
+                        ThemeModeAction(themeMode, onCycleThemeMode)
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                    ),
+                )
+            },
+        ) { contentPadding ->
+            when (state) {
+                TrackListUiState.Loading -> CenteredTrackContent(contentPadding) {
+                    CircularProgressIndicator()
+                }
 
-            TrackListUiState.Empty -> CenteredTrackContent(contentPadding) {
-                Text("No tracks available")
-            }
+                TrackListUiState.Empty -> CenteredTrackContent(contentPadding) {
+                    Text("No tracks available")
+                }
 
-            TrackListUiState.Error -> CenteredTrackContent(contentPadding) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Text("Could not load tracks")
-                    Button(onClick = onRetry) {
-                        Text("Retry")
+                TrackListUiState.Error -> CenteredTrackContent(contentPadding) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text("Could not load tracks")
+                        Button(onClick = onRetry) {
+                            Text("Retry")
+                        }
                     }
                 }
-            }
 
-            is TrackListUiState.Content -> LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = 16.dp,
-                    top = contentPadding.calculateTopPadding() + 16.dp,
-                    end = 16.dp,
-                    bottom = contentPadding.calculateBottomPadding() + 16.dp,
-                ),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(state.tracks, key = TrackUiModel::id) { track ->
-                    TrackCard(
-                        track = track,
-                        onPlayOrPause = onPlayOrPause,
-                    )
+                is TrackListUiState.Content -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        top = contentPadding.calculateTopPadding() + 16.dp,
+                        end = 16.dp,
+                        bottom = contentPadding.calculateBottomPadding() + 16.dp,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(state.tracks, key = TrackUiModel::id) { track ->
+                        TrackCard(
+                            track = track,
+                            onPlayOrPause = onPlayOrPause,
+                        )
+                    }
                 }
             }
         }
@@ -188,6 +211,8 @@ private fun TrackListScreenPreview() {
             onBack = {},
             onRetry = {},
             onPlayOrPause = {},
+            themeMode = AppThemeMode.SYSTEM,
+            onCycleThemeMode = { _ -> },
         )
     }
 }

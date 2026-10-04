@@ -9,12 +9,14 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
+import com.yavin.androidhandbookaudio.domain.model.AppThemeMode
 import com.yavin.androidhandbookaudio.ui.playlists.PlaylistsScreen
 import com.yavin.androidhandbookaudio.ui.playlists.PlaylistsViewModel
 import com.yavin.androidhandbookaudio.ui.player.MiniPlayer
@@ -39,6 +41,8 @@ fun AndroidHandbookAudioNavHost(
     playlistsViewModel: PlaylistsViewModel,
     trackListViewModel: TrackListViewModel,
     playerViewModel: PlayerViewModel,
+    themeMode: AppThemeMode,
+    onCycleThemeMode: (Offset) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val backStack = rememberNavBackStack(PlaylistsKey)
@@ -74,6 +78,9 @@ fun AndroidHandbookAudioNavHost(
                         onPlaylistClick = { playlistId ->
                             backStack.pushIfNotTop(TrackListKey(playlistId))
                         },
+                        playbackProgress = miniPlayerState?.progress,
+                        themeMode = themeMode,
+                        onCycleThemeMode = onCycleThemeMode,
                     )
                 }
                 entry<TrackListKey> { key ->
@@ -87,6 +94,9 @@ fun AndroidHandbookAudioNavHost(
                         },
                         onRetry = { trackListViewModel.retry(key.playlistId) },
                         onPlayOrPause = trackListViewModel::playOrPause,
+                        playbackProgress = miniPlayerState?.progress,
+                        themeMode = themeMode,
+                        onCycleThemeMode = onCycleThemeMode,
                     )
                 }
                 entry<PlayerKey> {
@@ -104,6 +114,8 @@ fun AndroidHandbookAudioNavHost(
                         onSpeedSelected = playerViewModel::setPlaybackSpeed,
                         onLanguageSelected = playerViewModel::selectLanguage,
                         onTranscriptSegmentClick = playerViewModel::seekToTranscriptSegment,
+                        themeMode = themeMode,
+                        onCycleThemeMode = onCycleThemeMode,
                     )
                 }
             },

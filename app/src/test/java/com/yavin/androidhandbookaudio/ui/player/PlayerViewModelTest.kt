@@ -1,11 +1,15 @@
 package com.yavin.androidhandbookaudio.ui.player
 
 import com.yavin.androidhandbookaudio.data.transcript.SrtParser
+import com.yavin.androidhandbookaudio.domain.model.MediaRendition
+import com.yavin.androidhandbookaudio.domain.model.Playlist
+import com.yavin.androidhandbookaudio.domain.model.PlaylistManifest
 import com.yavin.androidhandbookaudio.domain.model.Track
 import com.yavin.androidhandbookaudio.domain.model.PlaybackBookmark
 import com.yavin.androidhandbookaudio.domain.model.TimedTranscript
 import com.yavin.androidhandbookaudio.domain.model.TranscriptSegment
 import com.yavin.androidhandbookaudio.domain.repository.PlaybackPreferencesRepository
+import com.yavin.androidhandbookaudio.domain.repository.CatalogRepository
 import com.yavin.androidhandbookaudio.domain.repository.TranscriptRepository
 import com.yavin.androidhandbookaudio.playback.PlaybackController
 import com.yavin.androidhandbookaudio.playback.PlaybackRenditionMetadata
@@ -92,6 +96,51 @@ class PlayerViewModelTest {
         viewModel.playOrPause()
 
         assertEquals(1, controller.retryCalls)
+    }
+
+    @Test
+    fun `cold restored playback hydrates languages from its playlist`() = runTest(dispatcher) {
+        val controller = RecordingPlaybackController(
+            PlaybackState(
+                currentTrackId = "shorts.android-basics",
+                currentTitle = "Android Basics",
+                currentPlaylistId = "shorts",
+                currentLanguage = "en",
+            ),
+        )
+        val viewModel = createViewModel(
+            controller = controller,
+            transcriptRepository = FakeTranscriptRepository(),
+            catalogRepository = FakePlayerCatalogRepository(shortsManifest()),
+        )
+
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value as PlayerUiState.Active
+        assertEquals(listOf("en", "ru"), state.availableLanguages)
+        assertEquals("shorts", controller.updatedPlaylistId)
+    }
+
+    @Test
+    fun `legacy bookmark finds playlist by stable track id`() = runTest(dispatcher) {
+        val controller = RecordingPlaybackController(
+            PlaybackState(
+                currentTrackId = "shorts.android-basics",
+                currentTitle = "Android Basics",
+                currentLanguage = "en",
+            ),
+        )
+        val viewModel = createViewModel(
+            controller = controller,
+            transcriptRepository = FakeTranscriptRepository(),
+            catalogRepository = FakePlayerCatalogRepository(shortsManifest()),
+        )
+
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value as PlayerUiState.Active
+        assertEquals(listOf("en", "ru"), state.availableLanguages)
+        assertEquals("shorts", controller.updatedPlaylistId)
     }
 
     @Test
@@ -216,10 +265,12 @@ class PlayerViewModelTest {
     private fun createViewModel(
         controller: PlaybackController,
         transcriptRepository: TranscriptRepository,
+        catalogRepository: CatalogRepository = FakePlayerCatalogRepository(),
     ): PlayerViewModel {
         val preferences = FakePlayerPreferencesRepository()
         return PlayerViewModel(
             playbackController = controller,
+            catalogRepository = catalogRepository,
             transcriptRepository = transcriptRepository,
             playbackPreferencesRepository = preferences,
             switchPlaybackLanguage = SwitchPlaybackLanguage(
@@ -242,6 +293,27 @@ class PlayerViewModelTest {
     private fun transcript(text: String) = TimedTranscript(
         listOf(TranscriptSegment(startMs = 1_000, endMs = 2_000, text = text)),
     )
+
+    private fun shortsManifest() = PlaylistManifest(
+        id = "shorts",
+        titles = mapOf("en" to "Short Audio Notes"),
+        availableLanguages = listOf("en", "ru"),
+        tracks = listOf(
+            Track(
+                id = "shorts.android-basics",
+                order = 1,
+                titles = mapOf("en" to "Android Basics"),
+                renditions = listOf("en", "ru").associateWith { language ->
+                    MediaRendition(
+                        language = language,
+                        audioUrl = "https://example.com/android-basics-$language.mp3",
+                        transcriptUrl = null,
+                        timedTranscriptUrl = null,
+                    )
+                },
+            ),
+        ),
+    )
 }
 
 private class RecordingPlaybackController(initialState: PlaybackState) : PlaybackController {
@@ -253,6 +325,7 @@ private class RecordingPlaybackController(initialState: PlaybackState) : Playbac
     var retryCalls = 0
     var lastSpeed: Float? = null
     var lastLanguage: String? = null
+    var updatedPlaylistId: String? = null
 
     fun update(state: PlaybackState) {
         mutableState.value = state
@@ -261,11 +334,20 @@ private class RecordingPlaybackController(initialState: PlaybackState) : Playbac
     override fun playPlaylist(
         tracks: List<Track>,
         selectedTrackId: String,
+        playlistId: String,
         playlistTitle: String?,
         preferredLanguage: String,
     ) = Unit
 
-    override fun updatePlaylistTracks(tracks: List<Track>) = Unit
+    override fun updatePlaylistTracks(playlistId: String, tracks: List<Track>) {
+        updatedPlaylistId = playlistId
+        val currentTrackId = mutableState.value.currentTrackId
+        val currentTrack = tracks.firstOrNull { it.id == currentTrackId } ?: return
+        mutableState.value = mutableState.value.copy(
+            currentPlaylistId = playlistId,
+            availableLanguages = currentTrack.availableLanguages,
+        )
+    }
 
     override fun getCurrentTrackRendition(preferredLanguage: String) = PlaybackRenditionMetadata(
         language = preferredLanguage,
@@ -297,6 +379,24 @@ private class RecordingPlaybackController(initialState: PlaybackState) : Playbac
     override fun setPlaybackSpeed(speed: Float) {
         lastSpeed = speed
     }
+}
+
+private class FakePlayerCatalogRepository(
+    vararg manifests: PlaylistManifest,
+) : CatalogRepository {
+    private val manifestsById = manifests.associateBy(PlaylistManifest::id)
+
+    override suspend fun getPlaylists(): List<Playlist> = manifestsById.values.map { manifest ->
+        Playlist(
+            id = manifest.id,
+            titles = manifest.titles,
+            availableLanguages = manifest.availableLanguages,
+            manifestUrl = "https://example.com/${manifest.id}.json",
+        )
+    }
+
+    override suspend fun getPlaylist(playlistId: String): PlaylistManifest =
+        manifestsById.getValue(playlistId)
 }
 
 private class FakePlayerPreferencesRepository : PlaybackPreferencesRepository {
