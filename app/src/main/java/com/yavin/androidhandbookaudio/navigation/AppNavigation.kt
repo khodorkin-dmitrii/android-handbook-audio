@@ -55,13 +55,15 @@ fun AndroidHandbookAudioNavHost(
         modifier = modifier,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
-            if (miniPlayerState != null && backStack.lastOrNull() !is PlayerKey) {
-                MiniPlayer(
-                    state = miniPlayerState,
-                    onOpenPlayer = { backStack.pushIfNotTop(PlayerKey) },
-                    onPlayOrPause = playerViewModel::playOrPause,
-                    modifier = Modifier.navigationBarsPadding(),
-                )
+            miniPlayerState?.let { activeMiniPlayerState ->
+                if (shouldShowMiniPlayer(backStack.lastOrNull(), hasActiveMedia = true)) {
+                    MiniPlayer(
+                        state = activeMiniPlayerState,
+                        onOpenPlayer = { backStack.pushIfNotTop(PlayerKey) },
+                        onPlayOrPause = playerViewModel::playOrPause,
+                        modifier = Modifier.navigationBarsPadding(),
+                    )
+                }
             }
         },
     ) { outerPadding ->
@@ -94,6 +96,7 @@ fun AndroidHandbookAudioNavHost(
                         },
                         onRetry = { trackListViewModel.retry(key.playlistId) },
                         onPlayOrPause = trackListViewModel::playOrPause,
+                        onOpenPlayer = { backStack.pushIfNotTop(PlayerKey) },
                         playbackProgress = miniPlayerState?.progress,
                         themeMode = themeMode,
                         onCycleThemeMode = onCycleThemeMode,
@@ -122,6 +125,11 @@ fun AndroidHandbookAudioNavHost(
         )
     }
 }
+
+internal fun shouldShowMiniPlayer(
+    currentDestination: NavKey?,
+    hasActiveMedia: Boolean,
+): Boolean = hasActiveMedia && currentDestination == PlaylistsKey
 
 internal fun <T> MutableList<T>.pushIfNotTop(key: T) {
     if (lastOrNull() != key) add(key)

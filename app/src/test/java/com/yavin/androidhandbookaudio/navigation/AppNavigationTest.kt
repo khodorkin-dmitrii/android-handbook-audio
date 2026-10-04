@@ -2,9 +2,23 @@ package com.yavin.androidhandbookaudio.navigation
 
 import androidx.navigation3.runtime.NavKey
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AppNavigationTest {
+    @Test
+    fun `mini player is shown on playlists when media is active`() {
+        assertTrue(shouldShowMiniPlayer(PlaylistsKey, hasActiveMedia = true))
+    }
+
+    @Test
+    fun `mini player is hidden outside playlists or without active media`() {
+        assertFalse(shouldShowMiniPlayer(TrackListKey("shorts"), hasActiveMedia = true))
+        assertFalse(shouldShowMiniPlayer(PlayerKey, hasActiveMedia = true))
+        assertFalse(shouldShowMiniPlayer(PlaylistsKey, hasActiveMedia = false))
+    }
+
     @Test
     fun `repeated playlist navigation does not duplicate top destination`() {
         val backStack = mutableListOf<NavKey>(PlaylistsKey)

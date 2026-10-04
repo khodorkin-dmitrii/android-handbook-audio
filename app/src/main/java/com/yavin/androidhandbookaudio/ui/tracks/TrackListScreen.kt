@@ -13,8 +13,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -26,8 +29,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.dropUnlessResumed
+import com.yavin.androidhandbookaudio.R
 import com.yavin.androidhandbookaudio.domain.model.AppThemeMode
 import com.yavin.androidhandbookaudio.ui.components.PlayerAmbientBackground
 import com.yavin.androidhandbookaudio.ui.components.ThemeModeAction
@@ -40,6 +46,7 @@ fun TrackListScreen(
     onBack: () -> Unit,
     onRetry: () -> Unit,
     onPlayOrPause: (String) -> Unit,
+    onOpenPlayer: () -> Unit,
     playbackProgress: Float? = null,
     themeMode: AppThemeMode,
     onCycleThemeMode: (Offset) -> Unit,
@@ -94,10 +101,12 @@ fun TrackListScreen(
                 }
 
                 is TrackListUiState.Content -> LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = contentPadding.calculateTopPadding()),
                     contentPadding = PaddingValues(
                         start = 16.dp,
-                        top = contentPadding.calculateTopPadding() + 16.dp,
+                        top = 16.dp,
                         end = 16.dp,
                         bottom = contentPadding.calculateBottomPadding() + 16.dp,
                     ),
@@ -107,6 +116,7 @@ fun TrackListScreen(
                         TrackCard(
                             track = track,
                             onPlayOrPause = onPlayOrPause,
+                            onOpenPlayer = onOpenPlayer,
                         )
                     }
                 }
@@ -119,10 +129,26 @@ fun TrackListScreen(
 private fun TrackCard(
     track: TrackUiModel,
     onPlayOrPause: (String) -> Unit,
+    onOpenPlayer: () -> Unit,
 ) {
     Card(
-        onClick = { onPlayOrPause(track.id) },
+        onClick = dropUnlessResumed {
+            dispatchTrackItemClick(
+                target = TrackItemClickTarget.CARD,
+                trackId = track.id,
+                isCurrent = track.isCurrent,
+                onPlayOrPause = onPlayOrPause,
+                onOpenPlayer = onOpenPlayer,
+            )
+        },
         modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (track.isCurrent) {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.68f)
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.76f)
+            },
+        ),
     ) {
         Row(
             modifier = Modifier
@@ -139,7 +165,7 @@ private fun TrackCard(
                     text = "${track.order}. ${track.title}",
                     style = MaterialTheme.typography.titleMedium,
                     color = if (track.isCurrent) {
-                        MaterialTheme.colorScheme.primary
+                        MaterialTheme.colorScheme.onPrimaryContainer
                     } else {
                         MaterialTheme.colorScheme.onSurface
                     },
@@ -151,26 +177,54 @@ private fun TrackCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                track.playbackStatus?.let { status ->
-                    Text(
-                        text = status.displayName(),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
             }
-            Button(onClick = { onPlayOrPause(track.id) }) {
-                Text(if (track.isPlaying) "Pause" else "Play")
+            FilledIconButton(
+                onClick = {
+                    dispatchTrackItemClick(
+                        target = TrackItemClickTarget.PLAYBACK_CONTROL,
+                        trackId = track.id,
+                        isCurrent = track.isCurrent,
+                        onPlayOrPause = onPlayOrPause,
+                        onOpenPlayer = onOpenPlayer,
+                    )
+                },
+            ) {
+                Icon(
+                    painter = painterResource(
+                        if (track.isPlaying) R.drawable.ic_pause_24
+                        else R.drawable.ic_play_arrow_24,
+                    ),
+                    contentDescription = if (track.isPlaying) {
+                        "Pause ${track.title}"
+                    } else {
+                        "Play ${track.title}"
+                    },
+                )
             }
         }
     }
 }
 
-private fun TrackPlaybackStatus.displayName(): String = when (this) {
-    TrackPlaybackStatus.BUFFERING -> "Buffering"
-    TrackPlaybackStatus.PLAYING -> "Playing"
-    TrackPlaybackStatus.PAUSED -> "Paused"
-    TrackPlaybackStatus.ERROR -> "Playback error"
+internal enum class TrackItemClickTarget {
+    CARD,
+    PLAYBACK_CONTROL,
+}
+
+internal fun dispatchTrackItemClick(
+    target: TrackItemClickTarget,
+    trackId: String,
+    isCurrent: Boolean,
+    onPlayOrPause: (String) -> Unit,
+    onOpenPlayer: () -> Unit,
+) {
+    when (target) {
+        TrackItemClickTarget.CARD -> {
+            if (!isCurrent) onPlayOrPause(trackId)
+            onOpenPlayer()
+        }
+
+        TrackItemClickTarget.PLAYBACK_CONTROL -> onPlayOrPause(trackId)
+    }
 }
 
 @Composable
@@ -211,6 +265,7 @@ private fun TrackListScreenPreview() {
             onBack = {},
             onRetry = {},
             onPlayOrPause = {},
+            onOpenPlayer = {},
             themeMode = AppThemeMode.SYSTEM,
             onCycleThemeMode = { _ -> },
         )
@@ -228,6 +283,7 @@ private fun TrackCardPreview() {
         TrackCard(
             track = previewTrackListState.tracks.first { it.isCurrent },
             onPlayOrPause = {},
+            onOpenPlayer = {},
         )
     }
 }
