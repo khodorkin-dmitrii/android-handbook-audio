@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.dropUnlessResumed
 import com.yavin.androidhandbookaudio.ui.theme.AndroidHandbookAudioTheme
 
 @Composable
@@ -32,7 +33,7 @@ fun MiniPlayer(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp)
-            .clickable(onClick = onOpenPlayer),
+            .clickable(onClick = dropUnlessResumed { onOpenPlayer() }),
     ) {
         Column {
             Row(

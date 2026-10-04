@@ -277,9 +277,7 @@ class Media3PlaybackController @Inject constructor(
                 ?.toString()
                 ?.lowercase()
                 ?: currentTrackId?.let(languagesByTrackId::get),
-            availableLanguages = currentTrackId
-                ?.let { tracksById.values.flatMap(Track::availableLanguages).distinct() }
-                .orEmpty(),
+            availableLanguages = tracksById.availableLanguagesFor(currentTrackId),
             timedTranscriptUrl = player.currentMediaItem?.mediaMetadata?.extras
                 ?.getString(TIMED_TRANSCRIPT_URL_KEY),
             timedTranscriptFormat = player.currentMediaItem?.mediaMetadata?.extras
@@ -352,6 +350,9 @@ class Media3PlaybackController @Inject constructor(
         const val DEFAULT_PLAYBACK_SPEED = 1f
     }
 }
+
+internal fun Map<String, Track>.availableLanguagesFor(trackId: String?): List<String> =
+    trackId?.let { get(it)?.availableLanguages }.orEmpty()
 
 internal fun shouldCheckpointPosition(
     currentPositionMs: Long,

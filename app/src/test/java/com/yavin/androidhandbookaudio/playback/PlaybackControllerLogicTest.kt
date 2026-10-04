@@ -1,5 +1,7 @@
 package com.yavin.androidhandbookaudio.playback
 
+import com.yavin.androidhandbookaudio.domain.model.MediaRendition
+import com.yavin.androidhandbookaudio.domain.model.Track
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -16,4 +18,29 @@ class PlaybackControllerLogicTest {
         assertEquals(90_000L, clampSeekPosition(90_000, null))
         assertEquals(0L, clampSeekPosition(-1, null))
     }
+
+    @Test
+    fun `available languages come only from current logical track`() {
+        val tracksById = listOf(
+            track("track-a", "en", "ru"),
+            track("track-b", "en"),
+        ).associateBy(Track::id)
+
+        assertEquals(listOf("en", "ru"), tracksById.availableLanguagesFor("track-a"))
+        assertEquals(listOf("en"), tracksById.availableLanguagesFor("track-b"))
+    }
+
+    private fun track(id: String, vararg languages: String) = Track(
+        id = id,
+        order = 0,
+        titles = mapOf("en" to id),
+        renditions = languages.associateWith { language ->
+            MediaRendition(
+                language = language,
+                audioUrl = "https://example.com/$id-$language.mp3",
+                transcriptUrl = null,
+                timedTranscriptUrl = null,
+            )
+        },
+    )
 }

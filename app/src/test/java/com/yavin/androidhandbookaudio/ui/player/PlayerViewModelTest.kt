@@ -1,5 +1,6 @@
 package com.yavin.androidhandbookaudio.ui.player
 
+import com.yavin.androidhandbookaudio.data.transcript.SrtParser
 import com.yavin.androidhandbookaudio.domain.model.Track
 import com.yavin.androidhandbookaudio.domain.model.PlaybackBookmark
 import com.yavin.androidhandbookaudio.domain.model.TimedTranscript
@@ -123,6 +124,32 @@ class PlayerViewModelTest {
         val viewModel = createViewModel(
             controller,
             FakeTranscriptRepository { _, _ -> error("Network failure") },
+        )
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value as PlayerUiState.Active
+        assertEquals(PlayerStatus.PAUSED, state.status)
+        assertEquals(TranscriptUiState.Error(), state.transcript)
+    }
+
+    @Test
+    fun `out of order transcript is rejected without affecting playback`() = runTest(dispatcher) {
+        val controller = RecordingPlaybackController(playbackState("out-of-order.srt"))
+        val viewModel = createViewModel(
+            controller,
+            FakeTranscriptRepository { _, _ ->
+                SrtParser().parse(
+                    """
+                    1
+                    00:00:05,000 --> 00:00:06,000
+                    Later cue first
+
+                    2
+                    00:00:01,000 --> 00:00:02,000
+                    Earlier cue second
+                    """.trimIndent(),
+                )
+            },
         )
         advanceUntilIdle()
 

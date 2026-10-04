@@ -75,6 +75,28 @@ class SwitchPlaybackLanguageTest {
     }
 
     @Test
+    fun `invalid target transcript is not used for cue based language mapping`() = runTest {
+        val controller = RecordingLanguageController(
+            state = playbackState(positionMs = 9_500),
+            target = targetMetadata(),
+        )
+        val useCase = SwitchPlaybackLanguage(
+            controller,
+            object : TranscriptRepository {
+                override suspend fun getTimedTranscript(
+                    url: String,
+                    format: String,
+                ): TimedTranscript = throw IllegalArgumentException("Out-of-order SRT")
+            },
+            RecordingPlaybackPreferencesRepository(),
+        )
+
+        useCase("ru", loadedCurrentTranscript = transcript(1_000, 5_000, 9_000))
+
+        assertEquals(0L, controller.switchPositionMs)
+    }
+
+    @Test
     fun `persists global preference even when current rendition falls back`() = runTest {
         val preferences = RecordingPlaybackPreferencesRepository()
         val controller = RecordingLanguageController(

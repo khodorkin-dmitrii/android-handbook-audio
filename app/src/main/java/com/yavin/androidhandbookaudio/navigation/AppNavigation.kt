@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
@@ -53,7 +54,7 @@ fun AndroidHandbookAudioNavHost(
             if (miniPlayerState != null && backStack.lastOrNull() !is PlayerKey) {
                 MiniPlayer(
                     state = miniPlayerState,
-                    onOpenPlayer = { backStack.add(PlayerKey) },
+                    onOpenPlayer = { backStack.pushIfNotTop(PlayerKey) },
                     onPlayOrPause = playerViewModel::playOrPause,
                     modifier = Modifier.navigationBarsPadding(),
                 )
@@ -71,7 +72,7 @@ fun AndroidHandbookAudioNavHost(
                         state = state,
                         onRetry = playlistsViewModel::retry,
                         onPlaylistClick = { playlistId ->
-                            backStack.add(TrackListKey(playlistId))
+                            backStack.pushIfNotTop(TrackListKey(playlistId))
                         },
                     )
                 }
@@ -81,8 +82,8 @@ fun AndroidHandbookAudioNavHost(
                     }
                     TrackListScreen(
                         state = trackListState,
-                        onBack = {
-                            if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
+                        onBack = dropUnlessResumed {
+                            backStack.popIfTop(key)
                         },
                         onRetry = { trackListViewModel.retry(key.playlistId) },
                         onPlayOrPause = trackListViewModel::playOrPause,
@@ -91,8 +92,8 @@ fun AndroidHandbookAudioNavHost(
                 entry<PlayerKey> {
                     PlayerScreen(
                         state = playerState,
-                        onBack = {
-                            if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
+                        onBack = dropUnlessResumed {
+                            backStack.popIfTop(PlayerKey)
                         },
                         onPlayOrPause = playerViewModel::playOrPause,
                         onSeekTo = playerViewModel::seekTo,
@@ -108,4 +109,12 @@ fun AndroidHandbookAudioNavHost(
             },
         )
     }
+}
+
+internal fun <T> MutableList<T>.pushIfNotTop(key: T) {
+    if (lastOrNull() != key) add(key)
+}
+
+internal fun <T> MutableList<T>.popIfTop(key: T) {
+    if (size > 1 && lastOrNull() == key) removeAt(lastIndex)
 }

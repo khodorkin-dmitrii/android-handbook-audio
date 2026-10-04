@@ -17,6 +17,11 @@ class SrtParser @Inject constructor() {
         val segments = normalizedInput
             .split(BLOCK_SEPARATOR)
             .mapNotNull(::parseBlock)
+        require(segments.zipWithNext().all { (previous, current) ->
+            previous.startMs <= current.startMs
+        }) {
+            "SRT cues must be ordered by nondecreasing start time"
+        }
         return TimedTranscript(segments)
     }
 

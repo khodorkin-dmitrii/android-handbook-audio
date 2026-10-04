@@ -4,6 +4,7 @@ import com.yavin.androidhandbookaudio.domain.model.TranscriptStyleRange
 import com.yavin.androidhandbookaudio.domain.model.TranscriptTextStyle
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class SrtParserTest {
@@ -133,6 +134,28 @@ class SrtParserTest {
 
         assertEquals(1, transcript.segments.size)
         assertEquals("Valid", transcript.segments.single().text)
+    }
+
+    @Test
+    fun `rejects cues whose start times are out of order`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            parser.parse(
+                """
+                1
+                00:00:05,000 --> 00:00:06,000
+                Later cue first
+
+                2
+                00:00:01,000 --> 00:00:02,000
+                Earlier cue second
+                """.trimIndent(),
+            )
+        }
+
+        assertEquals(
+            "SRT cues must be ordered by nondecreasing start time",
+            error.message,
+        )
     }
 
     private fun parseCue(markup: String) = parser.parse(

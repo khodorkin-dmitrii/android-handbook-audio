@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.dropUnlessResumed
 import com.yavin.androidhandbookaudio.ui.theme.AndroidHandbookAudioTheme
 
 @Composable
@@ -72,7 +73,7 @@ fun PlaylistsScreen(
                 items(state.playlists, key = PlaylistUiModel::id) { playlist ->
                     PlaylistCard(
                         playlist = playlist,
-                        onClick = { onPlaylistClick(playlist.id) },
+                        onClick = dropUnlessResumed { onPlaylistClick(playlist.id) },
                     )
                 }
             }
