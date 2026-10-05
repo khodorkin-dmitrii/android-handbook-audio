@@ -338,6 +338,11 @@ class Media3PlaybackController @Inject constructor(
                 ?.getString(TIMED_TRANSCRIPT_URL_KEY),
             timedTranscriptFormat = player.currentMediaItem?.mediaMetadata?.extras
                 ?.getString(TIMED_TRANSCRIPT_FORMAT_KEY),
+            hasTimedTranscript = tracksById.hasTimedTranscriptFor(currentTrackId) ||
+                player.currentMediaItem?.mediaMetadata?.extras?.let { extras ->
+                    !extras.getString(TIMED_TRANSCRIPT_URL_KEY).isNullOrBlank() &&
+                        extras.getString(TIMED_TRANSCRIPT_FORMAT_KEY).equals("srt", ignoreCase = true)
+                } == true,
             isPlaying = player.isPlaying,
             isBuffering = player.playbackState == Player.STATE_BUFFERING,
             positionMs = player.currentPosition.coerceAtLeast(0),
@@ -414,6 +419,12 @@ class Media3PlaybackController @Inject constructor(
 
 internal fun Map<String, Track>.availableLanguagesFor(trackId: String?): List<String> =
     trackId?.let { get(it)?.availableLanguages }.orEmpty()
+
+internal fun Map<String, Track>.hasTimedTranscriptFor(trackId: String?): Boolean =
+    trackId?.let { get(it) }?.renditions?.values?.any { rendition ->
+        !rendition.timedTranscriptUrl.isNullOrBlank() &&
+            rendition.timedTranscriptFormat.equals("srt", ignoreCase = true)
+    } == true
 
 internal fun shouldCheckpointPosition(
     currentPositionMs: Long,

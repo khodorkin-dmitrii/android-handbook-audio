@@ -3,6 +3,10 @@ package com.yavin.androidhandbookaudio.ui.player
 import android.content.res.Configuration
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -51,6 +55,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
@@ -71,6 +76,7 @@ import com.yavin.androidhandbookaudio.domain.model.TranscriptTextStyle
 import com.yavin.androidhandbookaudio.ui.components.PlayerAmbientBackground
 import com.yavin.androidhandbookaudio.ui.components.ThemeModeAction
 import com.yavin.androidhandbookaudio.ui.theme.AndroidHandbookAudioTheme
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -198,7 +204,9 @@ private fun ActivePlayer(
     var isSeeking by remember(state.trackId) { mutableStateOf(false) }
     var sliderPosition by remember(state.trackId) { mutableFloatStateOf(0f) }
     LaunchedEffect(state.positionMs, state.durationMs, isSeeking) {
-        if (!isSeeking) sliderPosition = state.positionMs.toFloat()
+        if (!isSeeking && state.durationMs != null) {
+            sliderPosition = state.positionMs.toFloat()
+        }
     }
 
     val transcript = state.transcript
@@ -210,7 +218,7 @@ private fun ActivePlayer(
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     when {
-        transcript is TranscriptUiState.Content && isLandscape -> {
+        state.hasTranscriptPanel && isLandscape -> {
             Row(
                 modifier = modifier.fillMaxSize(),
             ) {
@@ -234,6 +242,7 @@ private fun ActivePlayer(
                 VerticalDivider()
                 TranscriptPanel(
                     state = transcript,
+                    trackId = state.trackId,
                     onSegmentClick = onTranscriptSegmentClick,
                     modifier = Modifier
                         .weight(1f)
@@ -242,7 +251,7 @@ private fun ActivePlayer(
             }
         }
 
-        transcript is TranscriptUiState.Content -> {
+        state.hasTranscriptPanel -> {
             Column(
                 modifier = modifier.fillMaxSize(),
             ) {
@@ -264,6 +273,7 @@ private fun ActivePlayer(
                 HorizontalDivider()
                 TranscriptPanel(
                     state = transcript,
+                    trackId = state.trackId,
                     onSegmentClick = onTranscriptSegmentClick,
                     modifier = Modifier.weight(1f),
                 )
@@ -307,6 +317,27 @@ private fun PlayerControls(
     onLanguageSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var lastKnownDurationMs by remember(state.trackId) { mutableStateOf(state.durationMs) }
+    LaunchedEffect(state.durationMs) {
+        state.durationMs?.takeIf { it > 0 }?.let { lastKnownDurationMs = it }
+    }
+    val visualDurationMs = state.durationMs?.takeIf { it > 0 } ?: lastKnownDurationMs
+    val targetProgress = visualDurationMs
+        ?.takeIf { it > 0 }
+        ?.let { (sliderPosition / it).coerceIn(0f, 1f) }
+        ?: 0f
+    val animatedProgress = remember(state.trackId) { Animatable(targetProgress) }
+    LaunchedEffect(targetProgress, isSeeking) {
+        if (isSeeking) {
+            animatedProgress.snapTo(targetProgress)
+        } else {
+            animatedProgress.animateTo(
+                targetProgress,
+                animationSpec = tween(durationMillis = 400, easing = LinearEasing),
+            )
+        }
+    }
+
     Column(
         modifier = modifier
             .verticalScroll(rememberScrollState())
@@ -314,12 +345,16 @@ private fun PlayerControls(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text(
-            text = state.title,
-            style = MaterialTheme.typography.headlineMedium,
-        )
-        Text(
-            text = listOfNotNull(
+        AnimatedContent(
+            targetState = state.title,
+            transitionSpec = {
+                fadeIn(tween(240)) togetherWith fadeOut(tween(160))
+            },
+            label = "Player title",
+        ) { title ->
+            Text(text = title, style = MaterialTheme.typography.headlineMedium)
+        }
+        val statusText = listOfNotNull(
                 state.language?.uppercase()?.let { actualLanguage ->
                     if (state.preferredLanguage != state.language) {
                         "$actualLanguage actual (preferred ${state.preferredLanguage.uppercase()})"
@@ -328,22 +363,35 @@ private fun PlayerControls(
                     }
                 },
                 state.status.displayName(),
-                state.transcript.statusLabel(),
-            ).joinToString(" • "),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+            ).joinToString(" • ")
+        AnimatedContent(
+            targetState = statusText,
+            transitionSpec = {
+                fadeIn(tween(240)) togetherWith fadeOut(tween(160))
+            },
+            label = "Player status",
+        ) { text ->
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         state.errorMessage?.let { error ->
             Text(error, color = MaterialTheme.colorScheme.error)
         }
 
-        val durationMs = state.durationMs
+        val durationMs = visualDurationMs
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
             AudioSeekBar(
-                value = sliderPosition.coerceIn(0f, durationMs?.toFloat() ?: 0f),
+                value = if (isSeeking) {
+                    sliderPosition.coerceIn(0f, durationMs?.toFloat() ?: 0f)
+                } else {
+                    animatedProgress.value * (durationMs?.toFloat() ?: 0f)
+                },
                 onValueChange = { value ->
                     onSeekingChange(true, value)
                 },
@@ -352,7 +400,7 @@ private fun PlayerControls(
                     onSeekingChange(false, sliderPosition)
                 },
                 valueRange = 0f..(durationMs?.toFloat()?.coerceAtLeast(1f) ?: 1f),
-                enabled = durationMs != null && durationMs > 0,
+                enabled = state.durationMs != null && state.durationMs > 0,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(24.dp),
@@ -363,7 +411,11 @@ private fun PlayerControls(
             ) {
                 Text(
                     formatPlaybackTime(
-                        if (isSeeking) sliderPosition.toLong() else state.positionMs,
+                        if (isSeeking || state.durationMs == null) {
+                            sliderPosition.toLong()
+                        } else {
+                            state.positionMs
+                        },
                     ),
                 )
                 Text(durationMs?.let(::formatPlaybackTime) ?: "--:--")
@@ -479,45 +531,93 @@ private fun PlayerStatus.toPrimaryPlaybackIcon(): PrimaryPlaybackIcon = when (th
 
 @Composable
 private fun TranscriptPanel(
-    state: TranscriptUiState.Content,
+    state: TranscriptUiState,
+    trackId: String,
     onSegmentClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val content = state as? TranscriptUiState.Content
+    val isLoading = state is TranscriptUiState.Loading
+    var showLoadingIndicator by remember(trackId, isLoading) { mutableStateOf(false) }
+    LaunchedEffect(trackId, isLoading) {
+        if (isLoading) {
+            delay(1_000)
+            showLoadingIndicator = true
+        }
+    }
+    val showStatus = content == null && (!isLoading || showLoadingIndicator)
+    var retainedSegments by remember(trackId) {
+        mutableStateOf<List<TranscriptSegment>?>(null)
+    }
+    LaunchedEffect(content?.segments) {
+        if (content != null) retainedSegments = content.segments
+    }
+    val segments = content?.segments ?: retainedSegments
+    val transcriptAlpha by animateFloatAsState(
+        targetValue = if (showStatus) 0.35f else 1f,
+        animationSpec = tween(200),
+        label = "Transcript availability",
+    )
     val listState = rememberLazyListState()
-    LaunchedEffect(state.activeSegmentIndex) {
-        val activeIndex = state.activeSegmentIndex ?: return@LaunchedEffect
+    LaunchedEffect(content?.activeSegmentIndex) {
+        val activeIndex = content?.activeSegmentIndex ?: return@LaunchedEffect
         if (!listState.isScrollInProgress) {
             listState.animateScrollToItem((activeIndex - 2).coerceAtLeast(0))
         }
     }
 
-    LazyColumn(
-        state = listState,
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            horizontal = 18.dp,
-            vertical = 8.dp,
-        ),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        itemsIndexed(
-            items = state.segments,
-            key = { index, segment -> "${segment.startMs}-$index" },
-        ) { index, segment ->
-            val isActive = index == state.activeSegmentIndex
-            val styledText = remember(segment) { segment.toAnnotatedString() }
+    Box(modifier = modifier.fillMaxWidth()) {
+        if (segments != null) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize().alpha(transcriptAlpha),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    horizontal = 18.dp,
+                    vertical = 8.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                itemsIndexed(
+                    items = segments,
+                    key = { index, _ -> index },
+                ) { index, segment ->
+                    val isActive = index == content?.activeSegmentIndex
+                    val styledText = remember(segment) { segment.toAnnotatedString() }
+                    AnimatedContent(
+                        targetState = styledText,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = content != null) {
+                                onSegmentClick(segment.startMs)
+                            }
+                            .padding(vertical = 4.dp),
+                        transitionSpec = {
+                            fadeIn(tween(240)) togetherWith fadeOut(tween(160))
+                        },
+                        label = "Transcript cue text",
+                    ) { text ->
+                        Text(
+                            text = text,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (isActive) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    }
+                }
+            }
+        }
+        if (showStatus) {
             Text(
-                text = styledText,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onSegmentClick(segment.startMs) }
-                    .padding(vertical = 4.dp),
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (isActive) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                text = when (state) {
+                    TranscriptUiState.Loading -> "Loading transcript…"
+                    is TranscriptUiState.Error -> state.message
+                    else -> "Transcript unavailable"
                 },
+                modifier = Modifier.align(Alignment.Center).padding(18.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -544,12 +644,6 @@ private fun PlayerStatus.displayName(): String = when (this) {
     PlayerStatus.PLAYING -> "Playing"
     PlayerStatus.PAUSED -> "Paused"
     PlayerStatus.ERROR -> "Playback error"
-}
-
-private fun TranscriptUiState.statusLabel(): String? = when (this) {
-    TranscriptUiState.Loading -> "Loading transcript…"
-    is TranscriptUiState.Error -> message
-    is TranscriptUiState.Content, TranscriptUiState.Unavailable -> null
 }
 
 @Preview(

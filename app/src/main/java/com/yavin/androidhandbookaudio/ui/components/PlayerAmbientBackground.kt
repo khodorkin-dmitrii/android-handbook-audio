@@ -49,7 +49,7 @@ fun PlayerAmbientBackground(
         modifier = modifier.background(MaterialTheme.colorScheme.background),
     ) {
         AmbientBlobBackground(Modifier.fillMaxSize())
-        if (progress != null) {
+        if (progress != null || progressKey != null) {
             PerimeterPlaybackProgress(
                 progress = progress,
                 progressKey = progressKey,
@@ -157,22 +157,23 @@ private fun AmbientBlobBackground(modifier: Modifier = Modifier) {
 
 @Composable
 private fun PerimeterPlaybackProgress(
-    progress: Float,
+    progress: Float?,
     progressKey: Any?,
     isProgressPreview: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val targetProgress = progress.coerceIn(0f, 1f)
-    val animatedProgress = remember(progressKey) { Animatable(targetProgress) }
+    val targetProgress = progress?.coerceIn(0f, 1f)
+    val animatedProgress = remember(progressKey) { Animatable(targetProgress ?: 0f) }
     LaunchedEffect(targetProgress, isProgressPreview) {
-        val delta = abs(targetProgress - animatedProgress.value)
+        val target = targetProgress ?: return@LaunchedEffect
+        val delta = abs(target - animatedProgress.value)
         val durationMillis = when {
             isProgressPreview -> PREVIEW_PROGRESS_ANIMATION_DURATION_MS
             delta > MAX_SMOOTH_PROGRESS_STEP -> SEEK_PROGRESS_ANIMATION_DURATION_MS
             else -> PROGRESS_ANIMATION_DURATION_MS
         }
         animatedProgress.animateTo(
-            targetValue = targetProgress,
+            targetValue = target,
             animationSpec = tween(
                 durationMillis = durationMillis,
                 easing = LinearEasing,

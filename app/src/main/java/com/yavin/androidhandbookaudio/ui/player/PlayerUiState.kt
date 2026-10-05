@@ -24,6 +24,7 @@ sealed interface PlayerUiState {
         val hasNext: Boolean,
         val errorMessage: String?,
         val transcript: TranscriptUiState = TranscriptUiState.Unavailable,
+        val hasTranscriptPanel: Boolean = transcript !is TranscriptUiState.Unavailable,
     ) : PlayerUiState
 }
 
@@ -91,6 +92,7 @@ fun PlaybackState.toPlayerUiState(
         hasNext = hasNext,
         errorMessage = error,
         transcript = transcript,
+        hasTranscriptPanel = hasTimedTranscript || transcript !is TranscriptUiState.Unavailable,
     )
 }
 

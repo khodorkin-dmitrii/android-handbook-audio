@@ -59,6 +59,7 @@ fun TrackListScreen(
     onPlayOrPause: (String) -> Unit,
     onOpenPlayer: () -> Unit,
     playbackProgress: Float? = null,
+    playbackTrackId: String? = null,
     themeMode: AppThemeMode,
     onCycleThemeMode: (Offset) -> Unit,
     modifier: Modifier = Modifier,
@@ -67,6 +68,7 @@ fun TrackListScreen(
     Box(modifier = modifier) {
         PlayerAmbientBackground(
             progress = playbackProgress,
+            progressKey = playbackTrackId,
             modifier = Modifier.matchParentSize(),
         )
         Scaffold(

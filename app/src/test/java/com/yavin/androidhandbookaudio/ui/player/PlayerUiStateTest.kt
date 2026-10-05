@@ -68,6 +68,28 @@ class PlayerUiStateTest {
     }
 
     @Test
+    fun `transcript panel remains available while rendition transcript loads or is unavailable`() {
+        val playback = PlaybackState(currentTrackId = "track", hasTimedTranscript = true)
+
+        assertEquals(
+            true,
+            (playback.toPlayerUiState(TranscriptUiState.Loading) as PlayerUiState.Active)
+                .hasTranscriptPanel,
+        )
+        assertEquals(
+            true,
+            (playback.toPlayerUiState(TranscriptUiState.Unavailable) as PlayerUiState.Active)
+                .hasTranscriptPanel,
+        )
+        assertEquals(
+            false,
+            (playback.copy(hasTimedTranscript = false)
+                .toPlayerUiState(TranscriptUiState.Unavailable) as PlayerUiState.Active)
+                .hasTranscriptPanel,
+        )
+    }
+
+    @Test
     fun `mini player is visible only for active media and maps progress`() {
         assertNull(PlaybackState().toPlayerUiState().toMiniPlayerUiState())
 

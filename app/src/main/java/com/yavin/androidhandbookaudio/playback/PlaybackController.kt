@@ -12,6 +12,7 @@ data class PlaybackState(
     val availableLanguages: List<String> = emptyList(),
     val timedTranscriptUrl: String? = null,
     val timedTranscriptFormat: String? = null,
+    val hasTimedTranscript: Boolean = false,
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,
     val positionMs: Long = 0,

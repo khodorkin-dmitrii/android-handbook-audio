@@ -65,6 +65,7 @@ fun AndroidHandbookAudioNavHost(
         if (backStack.lastOrNull() == PlaylistsKey) {
             PlayerAmbientBackground(
                 progress = miniPlayerState?.progress,
+                progressKey = miniPlayerState?.trackId,
                 modifier = Modifier.matchParentSize(),
             )
         }
@@ -115,6 +116,7 @@ fun AndroidHandbookAudioNavHost(
                             onPlayOrPause = trackListViewModel::playOrPause,
                             onOpenPlayer = { backStack.pushIfNotTop(PlayerKey) },
                             playbackProgress = miniPlayerState?.progress,
+                            playbackTrackId = miniPlayerState?.trackId,
                             themeMode = themeMode,
                             onCycleThemeMode = onCycleThemeMode,
                         )

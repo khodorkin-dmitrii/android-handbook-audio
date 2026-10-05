@@ -31,6 +31,26 @@ class PlaybackControllerLogicTest {
     }
 
     @Test
+    fun `transcript panel availability follows logical track across renditions`() {
+        val trackWithTranscript = track("track-a", "en", "ru")
+        val tracksById = mapOf(
+            "track-a" to trackWithTranscript.copy(
+                renditions = trackWithTranscript.renditions + (
+                    "en" to trackWithTranscript.renditions.getValue("en").copy(
+                        timedTranscriptUrl = "https://example.com/track-a-en.srt",
+                        timedTranscriptFormat = "srt",
+                    )
+                ),
+            ),
+            "track-b" to track("track-b", "en"),
+        )
+
+        assertEquals(true, tracksById.hasTimedTranscriptFor("track-a"))
+        assertEquals(false, tracksById.hasTimedTranscriptFor("track-b"))
+        assertEquals(false, tracksById.hasTimedTranscriptFor(null))
+    }
+
+    @Test
     fun `only a restored single item queue is hydrated from playlist metadata`() {
         assertEquals(
             true,
