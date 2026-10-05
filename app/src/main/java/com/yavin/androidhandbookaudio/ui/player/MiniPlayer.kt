@@ -7,19 +7,24 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
+import com.yavin.androidhandbookaudio.R
 import com.yavin.androidhandbookaudio.ui.theme.AndroidHandbookAudioTheme
 
 @Composable
@@ -32,8 +37,11 @@ fun MiniPlayer(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .padding(horizontal = 4.dp)
             .clickable(onClick = dropUnlessResumed { onOpenPlayer() }),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.68f),
+        ),
     ) {
         Column {
             state.progress?.let { progress ->
@@ -53,6 +61,7 @@ fun MiniPlayer(
                     Text(
                         text = state.title,
                         style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                     )
                     state.language?.let { language ->
@@ -63,11 +72,31 @@ fun MiniPlayer(
                         )
                     }
                 }
-                if (state.isBuffering) {
-                    CircularProgressIndicator(modifier = Modifier.padding(10.dp))
-                }
-                TextButton(onClick = onPlayOrPause) {
-                    Text(if (state.isPlaying) "Pause" else "Play")
+                FilledIconButton(
+                    onClick = onPlayOrPause,
+                    enabled = !state.isBuffering,
+                ) {
+                    if (state.isBuffering) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Icon(
+                            painter = painterResource(
+                                when {
+                                    state.hasError -> R.drawable.ic_refresh_24
+                                    state.isPlaying -> R.drawable.ic_pause_24
+                                    else -> R.drawable.ic_play_arrow_24
+                                },
+                            ),
+                            contentDescription = when {
+                                state.hasError -> "Retry ${state.title}"
+                                state.isPlaying -> "Pause ${state.title}"
+                                else -> "Play ${state.title}"
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -97,6 +126,7 @@ private fun MiniPlayerPreview() {
                     language = "EN",
                     isPlaying = true,
                     isBuffering = false,
+                    hasError = false,
                     progress = 0.42f,
                 ),
                 onOpenPlayer = {},
@@ -122,6 +152,7 @@ private fun MiniPlayerBufferingPreview() {
                     language = "RU",
                     isPlaying = false,
                     isBuffering = true,
+                    hasError = false,
                     progress = null,
                 ),
                 onOpenPlayer = {},

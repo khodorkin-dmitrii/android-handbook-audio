@@ -1,7 +1,6 @@
 package com.yavin.androidhandbookaudio.ui.playlists
 
 import android.content.res.Configuration
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,7 +29,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.yavin.androidhandbookaudio.domain.model.AppThemeMode
-import com.yavin.androidhandbookaudio.ui.components.PlayerAmbientBackground
 import com.yavin.androidhandbookaudio.ui.components.ThemeModeAction
 import com.yavin.androidhandbookaudio.ui.theme.AndroidHandbookAudioTheme
 
@@ -39,69 +38,64 @@ fun PlaylistsScreen(
     state: PlaylistsUiState,
     onRetry: () -> Unit,
     onPlaylistClick: (String) -> Unit,
-    playbackProgress: Float? = null,
     themeMode: AppThemeMode,
     onCycleThemeMode: (Offset) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier = modifier) {
-        PlayerAmbientBackground(
-            progress = playbackProgress,
-            modifier = Modifier.matchParentSize(),
-        )
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            containerColor = Color.Transparent,
-            contentColor = MaterialTheme.colorScheme.onBackground,
-            topBar = {
-                TopAppBar(
-                    title = { Text("Playlists") },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                    ),
-                    actions = {
-                        ThemeModeAction(themeMode, onCycleThemeMode)
-                    },
-                )
-            },
-        ) { contentPadding ->
-            when (state) {
-                PlaylistsUiState.Loading -> CenteredContent(contentPadding) {
-                    CircularProgressIndicator()
-                }
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        containerColor = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onBackground,
+        topBar = {
+            TopAppBar(
+                title = { Text("Playlists") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                ),
+                actions = {
+                    ThemeModeAction(themeMode, onCycleThemeMode)
+                },
+            )
+        },
+    ) { contentPadding ->
+        when (state) {
+            PlaylistsUiState.Loading -> CenteredContent(contentPadding) {
+                CircularProgressIndicator()
+            }
 
-                PlaylistsUiState.Empty -> CenteredContent(contentPadding) {
-                    Text("No playlists available")
-                }
+            PlaylistsUiState.Empty -> CenteredContent(contentPadding) {
+                Text("No playlists available")
+            }
 
-                PlaylistsUiState.Error -> CenteredContent(contentPadding) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Text("Could not load playlists")
-                        Button(onClick = onRetry) {
-                            Text("Retry")
-                        }
-                    }
-                }
-
-                is PlaylistsUiState.Content -> LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = 16.dp,
-                        top = contentPadding.calculateTopPadding() + 16.dp,
-                        end = 16.dp,
-                        bottom = contentPadding.calculateBottomPadding() + 16.dp,
-                    ),
+            PlaylistsUiState.Error -> CenteredContent(contentPadding) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(state.playlists, key = PlaylistUiModel::id) { playlist ->
-                        PlaylistCard(
-                            playlist = playlist,
-                            onClick = dropUnlessResumed { onPlaylistClick(playlist.id) },
-                        )
+                    Text("Could not load playlists")
+                    Button(onClick = onRetry) {
+                        Text("Retry")
                     }
+                }
+            }
+
+            is PlaylistsUiState.Content -> LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = contentPadding.calculateTopPadding()),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    top = 16.dp,
+                    end = 16.dp,
+                    bottom = contentPadding.calculateBottomPadding(),
+                ),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                items(state.playlists, key = PlaylistUiModel::id) { playlist ->
+                    PlaylistCard(
+                        playlist = playlist,
+                        onClick = dropUnlessResumed { onPlaylistClick(playlist.id) },
+                    )
                 }
             }
         }
@@ -114,9 +108,11 @@ private fun PlaylistCard(
     onClick: () -> Unit,
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.52f),
+        ),
     ) {
         Column(
             modifier = Modifier.padding(20.dp),

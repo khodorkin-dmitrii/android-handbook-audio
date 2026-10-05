@@ -92,6 +92,9 @@ fun ThemeRevealTransition(
             capturedSize = sizeAtRequest
             revealOrigin = origin
             maxRevealRadius = calculateRevealRadius(origin, contentSize)
+            // The previous animation finishes at 1f. Reset before publishing the next snapshot so
+            // it is fully opaque while the newly themed content renders its first frame.
+            revealProgress.snapTo(0f)
             previousFrame = capturedFrame
             currentCycleThemeMode()
         }
@@ -106,7 +109,6 @@ fun ThemeRevealTransition(
         }
 
         withFrameNanos { }
-        revealProgress.snapTo(0f)
         revealProgress.animateTo(
             targetValue = 1f,
             animationSpec = tween(

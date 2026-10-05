@@ -59,7 +59,7 @@ fun PlayerAmbientBackground(
 private fun AmbientBlobBackground(modifier: Modifier = Modifier) {
     val colorScheme = MaterialTheme.colorScheme
     val isDark = colorScheme.background.luminance() < 0.5f
-    val blobAlpha = if (isDark) 0.18f else 0.13f
+    val blobAlpha = if (isDark) 0.28f else 0.23f
     val transition = rememberInfiniteTransition(label = "ambient blobs")
     val firstPhase by transition.animateFloat(
         initialValue = 0f,

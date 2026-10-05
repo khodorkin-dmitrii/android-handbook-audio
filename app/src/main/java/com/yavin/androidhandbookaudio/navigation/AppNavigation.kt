@@ -1,15 +1,20 @@
 package com.yavin.androidhandbookaudio.navigation
 
+import androidx.compose.foundation.background
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.navigation3.runtime.NavKey
@@ -17,6 +22,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.yavin.androidhandbookaudio.domain.model.AppThemeMode
+import com.yavin.androidhandbookaudio.ui.components.PlayerAmbientBackground
 import com.yavin.androidhandbookaudio.ui.playlists.PlaylistsScreen
 import com.yavin.androidhandbookaudio.ui.playlists.PlaylistsViewModel
 import com.yavin.androidhandbookaudio.ui.player.MiniPlayer
@@ -51,78 +57,90 @@ fun AndroidHandbookAudioNavHost(
     val playerState by playerViewModel.uiState.collectAsStateWithLifecycle()
     val miniPlayerState = playerState.toMiniPlayerUiState()
 
-    Scaffold(
-        modifier = modifier,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        bottomBar = {
-            miniPlayerState?.let { activeMiniPlayerState ->
-                if (shouldShowMiniPlayer(backStack.lastOrNull(), hasActiveMedia = true)) {
-                    MiniPlayer(
-                        state = activeMiniPlayerState,
-                        onOpenPlayer = { backStack.pushIfNotTop(PlayerKey) },
-                        onPlayOrPause = playerViewModel::playOrPause,
-                        modifier = Modifier.navigationBarsPadding(),
-                    )
-                }
-            }
-        },
-    ) { outerPadding ->
-        NavDisplay(
-            backStack = backStack,
-            modifier = Modifier
-                .padding(outerPadding)
-                .consumeWindowInsets(outerPadding),
-            entryProvider = entryProvider {
-                entry<PlaylistsKey> {
-                    PlaylistsScreen(
-                        state = state,
-                        onRetry = playlistsViewModel::retry,
-                        onPlaylistClick = { playlistId ->
-                            backStack.pushIfNotTop(TrackListKey(playlistId))
-                        },
-                        playbackProgress = miniPlayerState?.progress,
-                        themeMode = themeMode,
-                        onCycleThemeMode = onCycleThemeMode,
-                    )
-                }
-                entry<TrackListKey> { key ->
-                    LaunchedEffect(key.playlistId) {
-                        trackListViewModel.loadPlaylist(key.playlistId)
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+    ) {
+        if (backStack.lastOrNull() == PlaylistsKey) {
+            PlayerAmbientBackground(
+                progress = miniPlayerState?.progress,
+                modifier = Modifier.matchParentSize(),
+            )
+        }
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            bottomBar = {
+                miniPlayerState?.let { activeMiniPlayerState ->
+                    if (shouldShowMiniPlayer(backStack.lastOrNull(), hasActiveMedia = true)) {
+                        MiniPlayer(
+                            state = activeMiniPlayerState,
+                            onOpenPlayer = { backStack.pushIfNotTop(PlayerKey) },
+                            onPlayOrPause = playerViewModel::playOrPause,
+                            modifier = Modifier.navigationBarsPadding(),
+                        )
                     }
-                    TrackListScreen(
-                        state = trackListState,
-                        onBack = dropUnlessResumed {
-                            backStack.popIfTop(key)
-                        },
-                        onRetry = { trackListViewModel.retry(key.playlistId) },
-                        onPlayOrPause = trackListViewModel::playOrPause,
-                        onOpenPlayer = { backStack.pushIfNotTop(PlayerKey) },
-                        playbackProgress = miniPlayerState?.progress,
-                        themeMode = themeMode,
-                        onCycleThemeMode = onCycleThemeMode,
-                    )
-                }
-                entry<PlayerKey> {
-                    PlayerScreen(
-                        state = playerState,
-                        onBack = dropUnlessResumed {
-                            backStack.popIfTop(PlayerKey)
-                        },
-                        onPlayOrPause = playerViewModel::playOrPause,
-                        onSeekTo = playerViewModel::seekTo,
-                        onSeekBackward = playerViewModel::seekBackward,
-                        onSeekForward = playerViewModel::seekForward,
-                        onPrevious = playerViewModel::previous,
-                        onNext = playerViewModel::next,
-                        onSpeedSelected = playerViewModel::setPlaybackSpeed,
-                        onLanguageSelected = playerViewModel::selectLanguage,
-                        onTranscriptSegmentClick = playerViewModel::seekToTranscriptSegment,
-                        themeMode = themeMode,
-                        onCycleThemeMode = onCycleThemeMode,
-                    )
                 }
             },
-        )
+        ) { outerPadding ->
+            NavDisplay(
+                backStack = backStack,
+                modifier = Modifier
+                    .padding(outerPadding)
+                    .consumeWindowInsets(outerPadding),
+                entryProvider = entryProvider {
+                    entry<PlaylistsKey> {
+                        PlaylistsScreen(
+                            state = state,
+                            onRetry = playlistsViewModel::retry,
+                            onPlaylistClick = { playlistId ->
+                                backStack.pushIfNotTop(TrackListKey(playlistId))
+                            },
+                            themeMode = themeMode,
+                            onCycleThemeMode = onCycleThemeMode,
+                        )
+                    }
+                    entry<TrackListKey> { key ->
+                        LaunchedEffect(key.playlistId) {
+                            trackListViewModel.loadPlaylist(key.playlistId)
+                        }
+                        TrackListScreen(
+                            state = trackListState,
+                            onBack = dropUnlessResumed {
+                                backStack.popIfTop(key)
+                            },
+                            onRetry = { trackListViewModel.retry(key.playlistId) },
+                            onPlayOrPause = trackListViewModel::playOrPause,
+                            onOpenPlayer = { backStack.pushIfNotTop(PlayerKey) },
+                            playbackProgress = miniPlayerState?.progress,
+                            themeMode = themeMode,
+                            onCycleThemeMode = onCycleThemeMode,
+                        )
+                    }
+                    entry<PlayerKey> {
+                        PlayerScreen(
+                            state = playerState,
+                            onBack = dropUnlessResumed {
+                                backStack.popIfTop(PlayerKey)
+                            },
+                            onPlayOrPause = playerViewModel::playOrPause,
+                            onSeekTo = playerViewModel::seekTo,
+                            onSeekBackward = playerViewModel::seekBackward,
+                            onSeekForward = playerViewModel::seekForward,
+                            onPrevious = playerViewModel::previous,
+                            onNext = playerViewModel::next,
+                            onSpeedSelected = playerViewModel::setPlaybackSpeed,
+                            onLanguageSelected = playerViewModel::selectLanguage,
+                            onTranscriptSegmentClick = playerViewModel::seekToTranscriptSegment,
+                            themeMode = themeMode,
+                            onCycleThemeMode = onCycleThemeMode,
+                        )
+                    }
+                },
+            )
+        }
     }
 }
 

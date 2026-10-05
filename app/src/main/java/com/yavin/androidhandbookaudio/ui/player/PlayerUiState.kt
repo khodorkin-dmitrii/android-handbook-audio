@@ -55,6 +55,7 @@ data class MiniPlayerUiState(
     val language: String?,
     val isPlaying: Boolean,
     val isBuffering: Boolean,
+    val hasError: Boolean,
     val progress: Float?,
 )
 
@@ -138,6 +139,7 @@ fun PlayerUiState.toMiniPlayerUiState(): MiniPlayerUiState? {
         language = active.language?.uppercase(),
         isPlaying = active.status == PlayerStatus.PLAYING,
         isBuffering = active.status == PlayerStatus.BUFFERING,
+        hasError = active.status == PlayerStatus.ERROR,
         progress = progress,
     )
 }

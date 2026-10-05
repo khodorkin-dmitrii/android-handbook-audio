@@ -1,17 +1,15 @@
 package com.yavin.androidhandbookaudio.ui.player
 
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -40,9 +38,10 @@ fun AudioSeekBar(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isDragged by interactionSource.collectIsDraggedAsState()
-    val thumbSize by animateDpAsState(
-        targetValue = if (isDragged) 14.dp else 13.dp,
-        label = "Audio seek thumb size",
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val trackHeight by animateDpAsState(
+        targetValue = if (isDragged || isPressed) 8.dp else 6.dp,
+        label = "Audio seek track height",
     )
     val colorScheme = MaterialTheme.colorScheme
     val colors = SliderDefaults.colors(
@@ -62,31 +61,11 @@ fun AudioSeekBar(
         enabled = enabled,
         colors = colors,
         interactionSource = interactionSource,
-        thumb = {
-            Box(
-                // Material 3 Slider enforces a 16.dp minimum height for the horizontal thumb slot.
-                // Matching that height keeps the smaller visual thumb centered on the track.
-                modifier = Modifier.size(width = 14.dp, height = 16.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Spacer(
-                    modifier = Modifier
-                        .size(thumbSize)
-                        .background(
-                            color = if (enabled) {
-                                colorScheme.primary
-                            } else {
-                                colorScheme.onSurface.copy(alpha = 0.38f)
-                            },
-                            shape = CircleShape,
-                        ),
-                )
-            }
-        },
+        thumb = { Spacer(Modifier) },
         track = { sliderState ->
             SliderDefaults.Track(
                 sliderState = sliderState,
-                modifier = Modifier.height(3.dp),
+                modifier = Modifier.height(trackHeight),
                 enabled = enabled,
                 colors = colors,
                 drawStopIndicator = null,

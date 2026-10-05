@@ -144,9 +144,9 @@ private fun TrackCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = if (track.isCurrent) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.68f)
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.48f)
             } else {
-                MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.76f)
+                MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.52f)
             },
         ),
     ) {

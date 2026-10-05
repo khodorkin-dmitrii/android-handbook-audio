@@ -85,6 +85,18 @@ class PlayerUiStateTest {
     }
 
     @Test
+    fun `mini player exposes retry state for playback errors`() {
+        val miniPlayer = PlaybackState(
+            currentTrackId = "track",
+            error = "failed",
+        ).toPlayerUiState().toMiniPlayerUiState()
+
+        assertEquals(true, miniPlayer?.hasError)
+        assertEquals(false, miniPlayer?.isPlaying)
+        assertEquals(false, miniPlayer?.isBuffering)
+    }
+
+    @Test
     fun `formats playback time and chooses supported speed`() {
         assertEquals("0:00", formatPlaybackTime(-1))
         assertEquals("1:01", formatPlaybackTime(61_999))
