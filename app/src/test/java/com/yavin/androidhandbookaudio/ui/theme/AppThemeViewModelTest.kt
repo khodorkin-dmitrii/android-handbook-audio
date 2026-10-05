@@ -32,6 +32,13 @@ class AppThemeViewModelTest {
     }
 
     @Test
+    fun `uses system theme until preferences are loaded`() = runTest(dispatcher) {
+        val viewModel = AppThemeViewModel(FakeThemePreferencesRepository(AppThemeMode.DARK))
+
+        assertEquals(AppThemeMode.SYSTEM, viewModel.themeMode.value)
+    }
+
+    @Test
     fun `cycles current mode and persists each selection`() = runTest(dispatcher) {
         val repository = FakeThemePreferencesRepository(AppThemeMode.SYSTEM)
         val viewModel = AppThemeViewModel(repository)

@@ -10,6 +10,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.yavin.androidhandbookaudio.domain.model.PlaybackBookmark
 import com.yavin.androidhandbookaudio.domain.model.Track
+import com.yavin.androidhandbookaudio.domain.repository.DEFAULT_PLAYBACK_LANGUAGE
 import com.yavin.androidhandbookaudio.domain.repository.PlaybackPreferencesRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -48,6 +49,7 @@ class Media3PlaybackController @Inject constructor(
     private var restoredBookmark: PlaybackBookmark? = null
     private var isPersistenceLoaded = false
     private var hasUserRequestedPlayback = false
+    private var hasHydratedRestoredQueue = false
     private var persistenceJob: Job? = null
     private var lastPeriodicCheckpointPositionMs = 0L
 
@@ -151,8 +153,9 @@ class Media3PlaybackController @Inject constructor(
     override fun updatePlaylistTracks(playlistId: String, tracks: List<Track>) {
         tracksById = tracksById + tracks.associateBy(Track::id)
         playlistIdsByTrackId = playlistIdsByTrackId + tracks.associate { it.id to playlistId }
-        updateState(controller)
         controller?.let { mediaController ->
+            hydrateRestoredQueueIfNeeded(mediaController, playlistId, tracks)
+            updateState(mediaController)
             if (tracks.any { it.id == mediaController.currentMediaItem?.mediaId }) {
                 checkpointPlayback(mediaController)
             }
@@ -276,6 +279,46 @@ class Media3PlaybackController @Inject constructor(
         }
     }
 
+    private fun hydrateRestoredQueueIfNeeded(
+        mediaController: MediaController,
+        playlistId: String,
+        tracks: List<Track>,
+    ) {
+        val currentTrackId = mediaController.currentMediaItem?.mediaId ?: return
+        if (!shouldHydrateRestoredQueue(
+                hasRestoredBookmark = restoredBookmark != null,
+                hasUserRequestedPlayback = hasUserRequestedPlayback,
+                hasHydratedQueue = hasHydratedRestoredQueue,
+                mediaItemCount = mediaController.mediaItemCount,
+                containsCurrentTrack = tracks.any { it.id == currentTrackId },
+            )
+        ) return
+
+        val preferredLanguage = mediaController.currentMediaItem?.mediaMetadata?.subtitle
+            ?.toString()
+            ?.lowercase()
+            ?: restoredBookmark?.language
+            ?: DEFAULT_PLAYBACK_LANGUAGE
+        val queue = buildPlaybackQueue(
+            tracks = tracks,
+            playlistId = playlistId,
+            playlistTitle = mediaController.currentMediaItem?.mediaMetadata?.albumTitle?.toString(),
+            preferredLanguage = preferredLanguage,
+        )
+        val currentIndex = queue.indexOfFirst { it.trackId == currentTrackId }
+        if (currentIndex < 0) return
+
+        val positionMs = mediaController.currentPosition.coerceAtLeast(0)
+        val playWhenReady = mediaController.playWhenReady
+        val playbackSpeed = mediaController.playbackParameters.speed
+        languagesByTrackId = queue.associate { it.trackId to it.language }
+        mediaController.setMediaItems(queue.map(PlaybackQueueItem::toMediaItem), currentIndex, positionMs)
+        mediaController.setPlaybackSpeed(playbackSpeed)
+        mediaController.prepare()
+        mediaController.playWhenReady = playWhenReady
+        hasHydratedRestoredQueue = true
+    }
+
     private fun updateState(player: Player?) {
         if (player == null) return
         val currentTrackId = player.currentMediaItem?.mediaId
@@ -387,3 +430,15 @@ internal fun shouldRestorePlayback(
     !hasUserRequestedPlayback &&
     !hasPendingPlayback &&
     !hasCurrentMedia
+
+internal fun shouldHydrateRestoredQueue(
+    hasRestoredBookmark: Boolean,
+    hasUserRequestedPlayback: Boolean,
+    hasHydratedQueue: Boolean,
+    mediaItemCount: Int,
+    containsCurrentTrack: Boolean,
+): Boolean = hasRestoredBookmark &&
+    !hasUserRequestedPlayback &&
+    !hasHydratedQueue &&
+    mediaItemCount == 1 &&
+    containsCurrentTrack

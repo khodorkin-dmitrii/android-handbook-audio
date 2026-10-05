@@ -15,8 +15,8 @@ import kotlinx.coroutines.launch
 class AppThemeViewModel @Inject constructor(
     private val themePreferencesRepository: ThemePreferencesRepository,
 ) : ViewModel() {
-    private val mutableThemeMode = MutableStateFlow<AppThemeMode?>(null)
-    val themeMode: StateFlow<AppThemeMode?> = mutableThemeMode.asStateFlow()
+    private val mutableThemeMode = MutableStateFlow(AppThemeMode.SYSTEM)
+    val themeMode: StateFlow<AppThemeMode> = mutableThemeMode.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -25,7 +25,7 @@ class AppThemeViewModel @Inject constructor(
     }
 
     fun cycleThemeMode() {
-        val nextMode = mutableThemeMode.value?.next() ?: return
+        val nextMode = mutableThemeMode.value.next()
         mutableThemeMode.value = nextMode
         viewModelScope.launch {
             themePreferencesRepository.saveThemeMode(nextMode)

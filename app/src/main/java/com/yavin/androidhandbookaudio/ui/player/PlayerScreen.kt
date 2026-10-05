@@ -481,7 +481,6 @@ private fun TranscriptPanel(
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
-                fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
             )
         }
     }

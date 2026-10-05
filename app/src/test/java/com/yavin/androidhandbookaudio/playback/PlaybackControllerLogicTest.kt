@@ -30,6 +30,30 @@ class PlaybackControllerLogicTest {
         assertEquals(listOf("en"), tracksById.availableLanguagesFor("track-b"))
     }
 
+    @Test
+    fun `only a restored single item queue is hydrated from playlist metadata`() {
+        assertEquals(
+            true,
+            shouldHydrateRestoredQueue(
+                hasRestoredBookmark = true,
+                hasUserRequestedPlayback = false,
+                hasHydratedQueue = false,
+                mediaItemCount = 1,
+                containsCurrentTrack = true,
+            ),
+        )
+        assertEquals(
+            false,
+            shouldHydrateRestoredQueue(
+                hasRestoredBookmark = true,
+                hasUserRequestedPlayback = false,
+                hasHydratedQueue = false,
+                mediaItemCount = 2,
+                containsCurrentTrack = true,
+            ),
+        )
+    }
+
     private fun track(id: String, vararg languages: String) = Track(
         id = id,
         order = 0,

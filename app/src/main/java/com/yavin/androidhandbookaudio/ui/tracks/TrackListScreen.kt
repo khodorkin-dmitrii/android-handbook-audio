@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -27,6 +28,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -109,8 +114,12 @@ fun TrackListScreen(
                 is TrackListUiState.Content -> {
                     val listState = rememberLazyListState()
                     val currentTrackIndex = state.tracks.indexOfFirst(TrackUiModel::isCurrent)
-                    LaunchedEffect(Unit) {
-                        if (currentTrackIndex < 0) return@LaunchedEffect
+                    var hasAttemptedInitialCurrentTrackScroll by remember { mutableStateOf(false) }
+                    LaunchedEffect(currentTrackIndex) {
+                        if (currentTrackIndex < 0 || hasAttemptedInitialCurrentTrackScroll) {
+                            return@LaunchedEffect
+                        }
+                        hasAttemptedInitialCurrentTrackScroll = true
 
                         val visibleTrackIndexes = snapshotFlow {
                             listState.layoutInfo.visibleItemsInfo.map { it.index }
@@ -225,18 +234,29 @@ private fun TrackCard(
                         onOpenPlayer = onOpenPlayer,
                     )
                 },
+                enabled = track.playbackStatus != TrackPlaybackStatus.BUFFERING,
             ) {
-                Icon(
-                    painter = painterResource(
-                        if (track.isPlaying) R.drawable.ic_pause_24
-                        else R.drawable.ic_play_arrow_24,
-                    ),
-                    contentDescription = if (track.isPlaying) {
-                        "Pause ${track.title}"
-                    } else {
-                        "Play ${track.title}"
-                    },
-                )
+                when (track.playbackStatus) {
+                    TrackPlaybackStatus.BUFFERING -> CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp,
+                    )
+
+                    TrackPlaybackStatus.ERROR -> Icon(
+                        painter = painterResource(R.drawable.ic_refresh_24),
+                        contentDescription = "Retry ${track.title}",
+                    )
+
+                    TrackPlaybackStatus.PLAYING -> Icon(
+                        painter = painterResource(R.drawable.ic_pause_24),
+                        contentDescription = "Pause ${track.title}",
+                    )
+
+                    else -> Icon(
+                        painter = painterResource(R.drawable.ic_play_arrow_24),
+                        contentDescription = "Play ${track.title}",
+                    )
+                }
             }
         }
     }

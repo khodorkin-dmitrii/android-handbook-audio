@@ -31,7 +31,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val themeMode by appThemeViewModel.themeMode.collectAsStateWithLifecycle()
-            themeMode?.let { currentThemeMode ->
+            run {
+                val currentThemeMode = themeMode
                 val darkTheme = currentThemeMode.resolveDarkTheme(isSystemInDarkTheme())
                 ThemeRevealTransition(
                     themeMode = currentThemeMode,
