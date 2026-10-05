@@ -107,6 +107,8 @@ class TrackListViewModelTest {
             currentTrackId = "shorts.second",
             currentLanguage = "en",
             isPlaying = true,
+            positionMs = 25_000,
+            durationMs = 60_000,
         )
         advanceUntilIdle()
 
@@ -116,6 +118,9 @@ class TrackListViewModelTest {
             TrackPlaybackStatus.PLAYING,
             tracks.single { it.id == "shorts.second" }.playbackStatus,
         )
+        assertEquals(25_000L, tracks.single { it.id == "shorts.second" }.positionMs)
+        assertEquals(60_000L, tracks.single { it.id == "shorts.second" }.durationMs)
+        assertEquals(null, tracks.single { it.id == "shorts.first" }.durationMs)
     }
 
     @Test

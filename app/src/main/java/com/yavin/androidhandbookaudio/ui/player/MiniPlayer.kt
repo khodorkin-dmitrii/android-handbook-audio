@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
@@ -34,6 +35,14 @@ fun MiniPlayer(
     onPlayOrPause: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val timeLabel = state.durationMs
+        ?.takeIf { it > 0 }
+        ?.let { durationMs ->
+            state.positionMs
+                ?.takeIf { it >= 0 }
+                ?.let { positionMs -> "${formatPlaybackTime(positionMs)} / ${formatPlaybackTime(durationMs)}" }
+                ?: formatPlaybackTime(durationMs)
+        }
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -71,6 +80,15 @@ fun MiniPlayer(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                }
+                timeLabel?.let { label ->
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.End,
+                        maxLines = 1,
+                    )
                 }
                 FilledIconButton(
                     onClick = onPlayOrPause,
@@ -128,6 +146,8 @@ private fun MiniPlayerPreview() {
                     isBuffering = false,
                     hasError = false,
                     progress = 0.42f,
+                    positionMs = 78_000,
+                    durationMs = 184_000,
                 ),
                 onOpenPlayer = {},
                 onPlayOrPause = {},
@@ -154,6 +174,7 @@ private fun MiniPlayerBufferingPreview() {
                     isBuffering = true,
                     hasError = false,
                     progress = null,
+                    durationMs = 184_000,
                 ),
                 onOpenPlayer = {},
                 onPlayOrPause = {},

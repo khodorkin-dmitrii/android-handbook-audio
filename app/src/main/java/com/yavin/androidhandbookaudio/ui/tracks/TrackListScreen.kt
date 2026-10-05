@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -25,11 +26,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
@@ -37,7 +41,9 @@ import com.yavin.androidhandbookaudio.R
 import com.yavin.androidhandbookaudio.domain.model.AppThemeMode
 import com.yavin.androidhandbookaudio.ui.components.PlayerAmbientBackground
 import com.yavin.androidhandbookaudio.ui.components.ThemeModeAction
+import com.yavin.androidhandbookaudio.ui.player.formatPlaybackTime
 import com.yavin.androidhandbookaudio.ui.theme.AndroidHandbookAudioTheme
+import kotlinx.coroutines.flow.first
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,24 +106,40 @@ fun TrackListScreen(
                     }
                 }
 
-                is TrackListUiState.Content -> LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = contentPadding.calculateTopPadding()),
-                    contentPadding = PaddingValues(
-                        start = 16.dp,
-                        top = 16.dp,
-                        end = 16.dp,
-                        bottom = contentPadding.calculateBottomPadding() + 16.dp,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(state.tracks, key = TrackUiModel::id) { track ->
-                        TrackCard(
-                            track = track,
-                            onPlayOrPause = onPlayOrPause,
-                            onOpenPlayer = onOpenPlayer,
-                        )
+                is TrackListUiState.Content -> {
+                    val listState = rememberLazyListState()
+                    val currentTrackIndex = state.tracks.indexOfFirst(TrackUiModel::isCurrent)
+                    LaunchedEffect(Unit) {
+                        if (currentTrackIndex < 0) return@LaunchedEffect
+
+                        val visibleTrackIndexes = snapshotFlow {
+                            listState.layoutInfo.visibleItemsInfo.map { it.index }
+                        }.first { indexes -> indexes.isNotEmpty() }
+
+                        if (currentTrackIndex !in visibleTrackIndexes) {
+                            listState.animateScrollToItem(currentTrackIndex)
+                        }
+                    }
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = contentPadding.calculateTopPadding()),
+                        contentPadding = PaddingValues(
+                            start = 16.dp,
+                            top = 16.dp,
+                            end = 16.dp,
+                            bottom = contentPadding.calculateBottomPadding() + 16.dp,
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(state.tracks, key = TrackUiModel::id) { track ->
+                            TrackCard(
+                                track = track,
+                                onPlayOrPause = onPlayOrPause,
+                                onOpenPlayer = onOpenPlayer,
+                            )
+                        }
                     }
                 }
             }
@@ -131,6 +153,12 @@ private fun TrackCard(
     onPlayOrPause: (String) -> Unit,
     onOpenPlayer: () -> Unit,
 ) {
+    val timeLabel = track.durationMs?.let { durationMs ->
+        track.positionMs
+            ?.takeIf { it >= 0 }
+            ?.let { positionMs -> "${formatPlaybackTime(positionMs)} / ${formatPlaybackTime(durationMs)}" }
+            ?: formatPlaybackTime(durationMs)
+    }
     Card(
         onClick = dropUnlessResumed {
             dispatchTrackItemClick(
@@ -177,6 +205,15 @@ private fun TrackCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+            timeLabel?.let { label ->
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.End,
+                    maxLines = 1,
+                )
             }
             FilledIconButton(
                 onClick = {
@@ -308,6 +345,8 @@ private val previewTrackListState = TrackListUiState.Content(
             isCurrent = true,
             isPlaying = true,
             playbackStatus = TrackPlaybackStatus.PLAYING,
+            positionMs = 78_000,
+            durationMs = 184_000,
         ),
         TrackUiModel(
             id = "shorts.jetpack-compose",

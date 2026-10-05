@@ -122,5 +122,7 @@ private fun Track.toUiModel(playbackState: PlaybackState): TrackUiModel {
                 else -> TrackPlaybackStatus.PAUSED
             }
         },
+        positionMs = playbackState.positionMs.takeIf { isCurrent },
+        durationMs = playbackState.durationMs?.takeIf { isCurrent && it > 0 },
     )
 }

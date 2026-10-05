@@ -81,6 +81,8 @@ class PlayerUiStateTest {
 
         assertEquals("Track", miniPlayer?.title)
         assertEquals(0.25f, miniPlayer?.progress)
+        assertEquals(25_000L, miniPlayer?.positionMs)
+        assertEquals(100_000L, miniPlayer?.durationMs)
         assertEquals(true, miniPlayer?.isPlaying)
     }
 

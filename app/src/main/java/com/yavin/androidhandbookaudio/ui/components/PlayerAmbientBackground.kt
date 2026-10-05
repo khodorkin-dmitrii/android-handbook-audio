@@ -33,6 +33,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yavin.androidhandbookaudio.ui.theme.AndroidHandbookAudioTheme
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
@@ -40,6 +41,8 @@ import kotlin.math.sin
 @Composable
 fun PlayerAmbientBackground(
     progress: Float?,
+    progressKey: Any? = null,
+    isProgressPreview: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -49,6 +52,8 @@ fun PlayerAmbientBackground(
         if (progress != null) {
             PerimeterPlaybackProgress(
                 progress = progress,
+                progressKey = progressKey,
+                isProgressPreview = isProgressPreview,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -153,23 +158,26 @@ private fun AmbientBlobBackground(modifier: Modifier = Modifier) {
 @Composable
 private fun PerimeterPlaybackProgress(
     progress: Float,
+    progressKey: Any?,
+    isProgressPreview: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val targetProgress = progress.coerceIn(0f, 1f)
-    val animatedProgress = remember { Animatable(targetProgress) }
-    LaunchedEffect(targetProgress) {
-        val delta = targetProgress - animatedProgress.value
-        if (delta < 0f || delta > MAX_SMOOTH_PROGRESS_STEP) {
-            animatedProgress.snapTo(targetProgress)
-        } else {
-            animatedProgress.animateTo(
-                targetValue = targetProgress,
-                animationSpec = tween(
-                    durationMillis = PROGRESS_ANIMATION_DURATION_MS,
-                    easing = LinearEasing,
-                ),
-            )
+    val animatedProgress = remember(progressKey) { Animatable(targetProgress) }
+    LaunchedEffect(targetProgress, isProgressPreview) {
+        val delta = abs(targetProgress - animatedProgress.value)
+        val durationMillis = when {
+            isProgressPreview -> PREVIEW_PROGRESS_ANIMATION_DURATION_MS
+            delta > MAX_SMOOTH_PROGRESS_STEP -> SEEK_PROGRESS_ANIMATION_DURATION_MS
+            else -> PROGRESS_ANIMATION_DURATION_MS
         }
+        animatedProgress.animateTo(
+            targetValue = targetProgress,
+            animationSpec = tween(
+                durationMillis = durationMillis,
+                easing = LinearEasing,
+            ),
+        )
     }
     val colorScheme = MaterialTheme.colorScheme
     val isDark = colorScheme.background.luminance() < 0.5f
@@ -348,6 +356,8 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawAmbientBlob(
 
 private const val FULL_CIRCLE_RADIANS = (PI * 2).toFloat()
 private const val PROGRESS_ANIMATION_DURATION_MS = 500
+private const val SEEK_PROGRESS_ANIMATION_DURATION_MS = 180
+private const val PREVIEW_PROGRESS_ANIMATION_DURATION_MS = 80
 private const val MAX_SMOOTH_PROGRESS_STEP = 0.05f
 
 @Preview(

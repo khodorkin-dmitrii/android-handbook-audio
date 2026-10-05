@@ -87,15 +87,29 @@ fun PlayerScreen(
     onCycleThemeMode: (Offset) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val screenTitle = (state as? PlayerUiState.Active)?.playlistTitle ?: "Now playing"
-    val playbackProgress = (state as? PlayerUiState.Active)?.let { active ->
+    val activeState = state as? PlayerUiState.Active
+    var seekPreviewProgress by remember(activeState?.trackId) { mutableStateOf<Float?>(null) }
+    LaunchedEffect(activeState?.positionMs, activeState?.durationMs) {
+        val active = activeState ?: return@LaunchedEffect
+        val preview = seekPreviewProgress ?: return@LaunchedEffect
+        val duration = active.durationMs?.takeIf { it > 0 } ?: return@LaunchedEffect
+        val acceptedPositionTolerance = 500f / duration
+        val confirmedProgress = (active.positionMs.toFloat() / duration).coerceIn(0f, 1f)
+        if (kotlin.math.abs(confirmedProgress - preview) <= acceptedPositionTolerance) {
+            seekPreviewProgress = null
+        }
+    }
+    val screenTitle = activeState?.playlistTitle ?: "Now playing"
+    val playbackProgress = activeState?.let { active ->
         active.durationMs
             ?.takeIf { it > 0 }
             ?.let { duration -> (active.positionMs.toFloat() / duration).coerceIn(0f, 1f) }
     }
     Box(modifier = modifier) {
         PlayerAmbientBackground(
-            progress = playbackProgress,
+            progress = seekPreviewProgress ?: playbackProgress,
+            progressKey = activeState?.trackId,
+            isProgressPreview = seekPreviewProgress != null,
             modifier = Modifier.matchParentSize(),
         )
         Scaffold(
@@ -135,6 +149,11 @@ fun PlayerScreen(
                     onNext = onNext,
                     onSpeedSelected = onSpeedSelected,
                     onLanguageSelected = onLanguageSelected,
+                    onSeekPreviewChange = { positionMs ->
+                        seekPreviewProgress = activeState?.durationMs
+                            ?.takeIf { it > 0 }
+                            ?.let { duration -> (positionMs / duration).coerceIn(0f, 1f) }
+                    },
                     onTranscriptSegmentClick = onTranscriptSegmentClick,
                     modifier = Modifier.padding(contentPadding),
                 )
@@ -169,6 +188,7 @@ private fun ActivePlayer(
     onNext: () -> Unit,
     onSpeedSelected: (Float) -> Unit,
     onLanguageSelected: (String) -> Unit,
+    onSeekPreviewChange: (Float) -> Unit,
     onTranscriptSegmentClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -191,6 +211,7 @@ private fun ActivePlayer(
                 onSeekingChange = { seeking, position ->
                     isSeeking = seeking
                     sliderPosition = position
+                    onSeekPreviewChange(position)
                 },
                 onPlayOrPause = onPlayOrPause,
                 onSeekTo = onSeekTo,
@@ -216,6 +237,7 @@ private fun ActivePlayer(
                 onSeekingChange = { seeking, position ->
                     isSeeking = seeking
                     sliderPosition = position
+                    onSeekPreviewChange(position)
                 },
                 onPlayOrPause = onPlayOrPause,
                 onSeekTo = onSeekTo,
@@ -251,7 +273,7 @@ private fun PlayerControls(
     Column(
         modifier = modifier
             .verticalScroll(rememberScrollState())
-            .padding(vertical = 4.dp, horizontal = 16.dp),
+            .padding(horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -362,7 +384,7 @@ private fun PlayerControls(
         }
 
         when (state.availableLanguages.size) {
-            2 -> SingleChoiceSegmentedButtonRow {
+            2 -> SingleChoiceSegmentedButtonRow(modifier = Modifier.padding(top = 4.dp)) {
                 state.availableLanguages.forEachIndexed { index, language ->
                     SegmentedButton(
                         selected = state.preferredLanguage == language,
@@ -389,21 +411,18 @@ private fun PlayerControls(
                 }
             }
         }
-        Column {
-            Text("Playback speed", style = MaterialTheme.typography.bodySmall)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                PlaybackSpeedOptions.forEach { speed ->
-                    FilterChip(
-                        selected = kotlin.math.abs(state.playbackSpeed - speed) < 0.01f,
-                        onClick = { onSpeedSelected(speed) },
-                        label = { Text("${speed}x") },
-                    )
-                }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        ) {
+            PlaybackSpeedOptions.forEach { speed ->
+                FilterChip(
+                    selected = kotlin.math.abs(state.playbackSpeed - speed) < 0.01f,
+                    onClick = { onSpeedSelected(speed) },
+                    label = { Text("${speed}x") },
+                )
             }
         }
     }

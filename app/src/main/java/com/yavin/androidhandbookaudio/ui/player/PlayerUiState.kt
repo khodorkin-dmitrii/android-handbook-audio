@@ -57,6 +57,8 @@ data class MiniPlayerUiState(
     val isBuffering: Boolean,
     val hasError: Boolean,
     val progress: Float?,
+    val positionMs: Long? = null,
+    val durationMs: Long? = null,
 )
 
 val PlaybackSpeedOptions = listOf(0.75f, 1f, 1.25f, 1.5f, 2f)
@@ -141,6 +143,8 @@ fun PlayerUiState.toMiniPlayerUiState(): MiniPlayerUiState? {
         isBuffering = active.status == PlayerStatus.BUFFERING,
         hasError = active.status == PlayerStatus.ERROR,
         progress = progress,
+        positionMs = active.positionMs,
+        durationMs = active.durationMs,
     )
 }
 

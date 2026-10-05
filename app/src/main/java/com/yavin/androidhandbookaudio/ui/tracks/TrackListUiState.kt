@@ -21,6 +21,8 @@ data class TrackUiModel(
     val isCurrent: Boolean,
     val isPlaying: Boolean,
     val playbackStatus: TrackPlaybackStatus?,
+    val positionMs: Long? = null,
+    val durationMs: Long? = null,
 )
 
 enum class TrackPlaybackStatus {
