@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -40,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -199,20 +202,80 @@ private fun ActivePlayer(
     }
 
     val transcript = state.transcript
-    Column(
-        modifier = modifier
-            .fillMaxSize(),
-    ) {
-        if (transcript is TranscriptUiState.Content) {
+    val onSeekingChange: (Boolean, Float) -> Unit = { seeking, position ->
+        isSeeking = seeking
+        sliderPosition = position
+        onSeekPreviewChange(position)
+    }
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    when {
+        transcript is TranscriptUiState.Content && isLandscape -> {
+            Row(
+                modifier = modifier.fillMaxSize(),
+            ) {
+                PlayerControls(
+                    state = state,
+                    isSeeking = isSeeking,
+                    sliderPosition = sliderPosition,
+                    onSeekingChange = onSeekingChange,
+                    onPlayOrPause = onPlayOrPause,
+                    onSeekTo = onSeekTo,
+                    onSeekBackward = onSeekBackward,
+                    onSeekForward = onSeekForward,
+                    onPrevious = onPrevious,
+                    onNext = onNext,
+                    onSpeedSelected = onSpeedSelected,
+                    onLanguageSelected = onLanguageSelected,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                )
+                VerticalDivider()
+                TranscriptPanel(
+                    state = transcript,
+                    onSegmentClick = onTranscriptSegmentClick,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                )
+            }
+        }
+
+        transcript is TranscriptUiState.Content -> {
+            Column(
+                modifier = modifier.fillMaxSize(),
+            ) {
+                PlayerControls(
+                    state = state,
+                    isSeeking = isSeeking,
+                    sliderPosition = sliderPosition,
+                    onSeekingChange = onSeekingChange,
+                    onPlayOrPause = onPlayOrPause,
+                    onSeekTo = onSeekTo,
+                    onSeekBackward = onSeekBackward,
+                    onSeekForward = onSeekForward,
+                    onPrevious = onPrevious,
+                    onNext = onNext,
+                    onSpeedSelected = onSpeedSelected,
+                    onLanguageSelected = onLanguageSelected,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                HorizontalDivider()
+                TranscriptPanel(
+                    state = transcript,
+                    onSegmentClick = onTranscriptSegmentClick,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
+        else -> {
             PlayerControls(
                 state = state,
                 isSeeking = isSeeking,
                 sliderPosition = sliderPosition,
-                onSeekingChange = { seeking, position ->
-                    isSeeking = seeking
-                    sliderPosition = position
-                    onSeekPreviewChange(position)
-                },
+                onSeekingChange = onSeekingChange,
                 onPlayOrPause = onPlayOrPause,
                 onSeekTo = onSeekTo,
                 onSeekBackward = onSeekBackward,
@@ -221,33 +284,7 @@ private fun ActivePlayer(
                 onNext = onNext,
                 onSpeedSelected = onSpeedSelected,
                 onLanguageSelected = onLanguageSelected,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            HorizontalDivider()
-            TranscriptPanel(
-                state = transcript,
-                onSegmentClick = onTranscriptSegmentClick,
-                modifier = Modifier.weight(1f),
-            )
-        } else {
-            PlayerControls(
-                state = state,
-                isSeeking = isSeeking,
-                sliderPosition = sliderPosition,
-                onSeekingChange = { seeking, position ->
-                    isSeeking = seeking
-                    sliderPosition = position
-                    onSeekPreviewChange(position)
-                },
-                onPlayOrPause = onPlayOrPause,
-                onSeekTo = onSeekTo,
-                onSeekBackward = onSeekBackward,
-                onSeekForward = onSeekForward,
-                onPrevious = onPrevious,
-                onNext = onNext,
-                onSpeedSelected = onSpeedSelected,
-                onLanguageSelected = onLanguageSelected,
-                modifier = Modifier.fillMaxSize(),
+                modifier = modifier.fillMaxSize(),
             )
         }
     }
@@ -459,7 +496,7 @@ private fun TranscriptPanel(
         modifier = modifier.fillMaxWidth(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
             horizontal = 18.dp,
-            vertical = 24.dp,
+            vertical = 8.dp,
         ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -588,6 +625,20 @@ private fun PlayerControlsLoadingPreview() {
     showBackground = true,
     widthDp = 393,
     heightDp = 852,
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+)
+@Preview(
+    name = "Player with transcript — landscape light",
+    showBackground = true,
+    widthDp = 852,
+    heightDp = 393,
+    uiMode = Configuration.UI_MODE_NIGHT_NO,
+)
+@Preview(
+    name = "Player with transcript — landscape dark",
+    showBackground = true,
+    widthDp = 852,
+    heightDp = 393,
     uiMode = Configuration.UI_MODE_NIGHT_YES,
 )
 @Composable
