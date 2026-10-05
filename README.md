@@ -32,6 +32,15 @@ The first content source is **Short Audio Notes**: concise topics covering Andro
       <img src="./screenshots/player-light-dark.png" alt="Full player with synchronized transcript in light and dark themes" width="100%">
     </td>
   </tr>
+  <tr>
+    <td colspan="2" align="center">
+      <h2>🎬 App demo</h2>
+      <a href="https://youtu.be/j8Brj8qWw1o">
+        <img src="./screenshots/audioDemo.gif" alt="Android Handbook Audio app demo" width="500">
+      </a>
+      <p><a href="https://youtu.be/j8Brj8qWw1o"><strong>▶ Watch the full demo on YouTube</strong></a></p>
+    </td>
+  </tr>
 </table>
 
 ## 🌐 Data source
@@ -52,11 +61,11 @@ https://khodorkin-dmitrii.github.io/android-dev-handbook/assets/audio/catalog.js
 - [x] Playback polish and persistence
 - [x] Language switching and preferred language
 - [x] Cue-aligned position transfer between language renditions
-- [ ] Static transcripts
 - [x] Timed synchronized SRT transcripts
 - [x] Inline SRT formatting (`italic`, `bold`, `underline`)
-- [ ] UI/UX polish: visual hierarchy, icon-based controls, spacing, and interaction feedback
+- [x] UI/UX polish: visual hierarchy, icon-based controls, spacing, and interaction feedback
 - [ ] UI/UX accessibility and adaptive layouts for different screen sizes
+- [ ] Static transcripts
 - [ ] Content improvements: expand playlists, review translations, audio quality, and transcript parity
 - [ ] Offline/caching experiments
 
