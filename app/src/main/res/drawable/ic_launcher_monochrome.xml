@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -8,20 +9,20 @@
         android:translateY="6.6">
         <group android:translateY="2.44">
             <path
-                android:fillColor="@color/ic_launcher_foreground_gradient"
+                android:fillColor="#FFFFFFFF"
                 android:pathData="M12,9.1C9.64,6.91 6.5,5.56 3,5.56v11c3.5,0 6.64,1.35 9,3.54c2.36,-2.19 5.5,-3.54 9,-3.54v-11c-3.5,0 -6.64,1.35 -9,3.54" />
         </group>
         <path
-            android:fillColor="@color/ic_launcher_foreground_gradient"
+            android:fillColor="#FFFFFFFF"
             android:pathData="M12,3.8A2.8,2.8 0,1 1,12,9.4A2.8,2.8 0,1 1,12,3.8Z" />
         <path
             android:fillColor="#00000000"
             android:pathData="M8.15,6.15v-0.1a3.85,3.85 0,0 1,7.7 0v0.1"
-            android:strokeColor="@color/ic_launcher_foreground_gradient"
+            android:strokeColor="#FFFFFFFF"
             android:strokeLineCap="round"
             android:strokeWidth="1.15" />
         <path
-            android:fillColor="@color/ic_launcher_foreground_gradient"
+            android:fillColor="#FFFFFFFF"
             android:pathData="M7.35,5.6h1.45v2.8H7.35a0.75,0.75 0,0 1,-0.75 -0.75v-1.3a0.75,0.75 0,0 1,0.75 -0.75ZM16.65,5.6H15.2v2.8h1.45a0.75,0.75 0,0 0,0.75 -0.75v-1.3a0.75,0.75 0,0 0,-0.75 -0.75Z" />
     </group>
 </vector>

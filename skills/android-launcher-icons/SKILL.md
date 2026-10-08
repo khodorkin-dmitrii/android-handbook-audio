@@ -7,6 +7,8 @@ description: Create or replace Android launcher icons from an SVG source, includ
 
 Create Android launcher icons from one vector source without accidentally scaling a low-resolution raster into higher-density resources.
 
+Match the requested scope: an adaptive-vector-only adjustment does **not** authorize regenerating or changing legacy PNGs. Use the full SVG-to-raster workflow below only when the request includes legacy icons or a complete icon replacement.
+
 ## Lessons from the failure
 
 The visibly blurred `xxhdpi` and `xxxhdpi` foreground was caused by the rasterization order, not by PNG itself:
@@ -61,7 +63,7 @@ res/mipmap-anydpi-v26/ic_launcher.xml
 res/mipmap-anydpi-v26/ic_launcher_round.xml
 ```
 
-Recommended structure:
+Simple solid-background structure:
 
 ```xml
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
@@ -75,9 +77,30 @@ Use a `VectorDrawable` for the foreground. Adaptive layers use a nominal `108dp 
 
 Do not bake the background or launcher mask into the adaptive foreground.
 
+### Optional: light/dark gradient adaptive icon
+
+When the design calls for the same soft color blobs as an app's UI, keep the adaptive layers independent rather than flattening them into a bitmap:
+
+```text
+res/drawable/ic_launcher_background.xml             light, full-bleed vector background
+res/drawable-night/ic_launcher_background.xml       dark, full-bleed vector background
+res/color/ic_launcher_foreground_gradient.xml       gradient for the light-mode glyph
+res/color-night/ic_launcher_foreground_gradient.xml gradient for the dark-mode glyph
+res/drawable/ic_launcher_foreground.xml             transparent vector glyph
+res/drawable/ic_launcher_monochrome.xml             single-color themed-icon glyph
+```
+
+In both `mipmap-anydpi-v26/ic_launcher*.xml` files, reference `@drawable/ic_launcher_background`, `@drawable/ic_launcher_foreground`, and `@drawable/ic_launcher_monochrome` as separate layers. The background vectors use a 108×108 viewport: first draw an opaque base, then overlay full-canvas paths filled by radial gradients whose edges fade to transparent. This keeps the backdrop full bleed under round and OEM masks. A foreground path can use a gradient color resource for both its fill and stroke; recolor **all** visible strokes, not only fills. The light variant can use a white base and saturated dark-colored glyph, while the dark variant uses a dark base, brighter blobs, and a light glyph. Preserve the glyph's optical center and the adaptive safe zone.
+
+Keep a separate single-color `monochrome` vector when the color foreground gains gradients. Otherwise system-themed icons can inherit unsuitable color detail. `drawable-night` and `color-night` follow the **system** night configuration, not an in-app Compose theme switch; some launchers cache icons, and a user's “themed icons” setting may display the monochrome layer instead of either color variant. Vector gradients are supported from API 24; adaptive icons themselves start at API 26. For an adaptive-only edit, leave pre-26 bitmap resources byte-for-byte unchanged.
+
+This repository's concrete implementation is in `app/src/main/res/drawable/ic_launcher_background.xml`, `drawable-night/ic_launcher_background.xml`, `drawable/ic_launcher_foreground.xml`, `drawable/ic_launcher_monochrome.xml`, and the matching `color`/`color-night` gradient resources. Treat the colors and glow strength as an example, not universal icon values.
+
+Platform references: [VectorDrawable gradients](https://developer.android.com/reference/android/graphics/drawable/VectorDrawable#Gradient_support) and [adaptive icon layers, safe zone, and themed icons](https://developer.android.com/develop/ui/compose/system/icon_design_adaptive).
+
 ### Older Android versions: legacy bitmaps
 
-Generate independent PNG resources for each density:
+If creating or replacing legacy icons, generate independent PNG resources for each density:
 
 | Density | Launcher size |
 |---|---:|
@@ -152,10 +175,10 @@ An equally valid pipeline is to render one very large transparent master from th
 
 ## VectorDrawable conversion
 
-Translate SVG geometry into `res/drawable/ic_launcher_foreground.xml`:
+When converting an SVG, translate its geometry into `res/drawable/ic_launcher_foreground.xml`:
 
-- Map filled paths to `android:pathData` plus `android:fillColor="#FFFFFFFF"`.
-- Map SVG strokes to `android:strokeColor="#FFFFFFFF"`, preserving width, line cap, and joins.
+- Map filled paths to `android:pathData` plus an intentional `android:fillColor` (white for a simple monochrome foreground, or a gradient color resource for the optional color variant).
+- Map SVG strokes to `android:strokeColor`, preserving width, line cap, and joins.
 - Convert circles or unsupported SVG primitives to path data when required.
 - Use groups for source transforms instead of manually changing every coordinate.
 - Use a transparent fill for stroke-only paths.
@@ -176,7 +199,7 @@ Get-ChildItem app/src/main/res -Recurse -Filter 'ic_launcher*.png' |
     }
 ```
 
-Confirm the exact 48/72/96/144/192 matrix for both normal and round icons.
+For full replacement, confirm the exact 48/72/96/144/192 matrix for both normal and round icons. For adaptive-only work, confirm the existing PNGs were not modified.
 
 ### 2. Visual sharpness
 
@@ -210,7 +233,7 @@ Verify that obsolete defaults and duplicate extensions are gone:
 ```powershell
 Get-ChildItem app/src/main/res -Recurse -File |
     Where-Object Name -Like 'ic_launcher*'
-rg -n "#3DDC84|@drawable/ic_launcher_background" app/src/main/res
+rg -n "#3DDC84" app/src/main/res
 ```
 
 The exact search terms depend on the old assets. The goal is one unambiguous resource per name and qualifier.
@@ -238,7 +261,7 @@ If any generated file was previously staged, run `git add` again only after the 
 
 ## Completion criteria
 
-The task is complete when:
+For a full replacement, the task is complete when:
 
 - adaptive icons reference separate background, vector foreground, and monochrome layers;
 - legacy normal and round PNGs exist at every required density;
@@ -248,3 +271,5 @@ The task is complete when:
 - dimensions and alpha are correct;
 - `assembleDebug` and `lintDebug` succeed;
 - only intended source and resource files remain in the Git diff.
+
+For an adaptive-only change, instead verify the requested vector layers and night variants, monochrome behavior, resource packaging/lint, safe-zone sizing, and the absence of PNG changes. Do not impose full-raster completion criteria on that narrower task.
