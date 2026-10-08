@@ -44,8 +44,5 @@ google-services.json
 # Android Profiling
 *.hprof
 
-# Local Codex instructions
-/AGENTS.md
-
 # Local implementation reports
 /docs/
