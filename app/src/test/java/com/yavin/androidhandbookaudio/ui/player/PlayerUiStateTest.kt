@@ -109,6 +109,33 @@ class PlayerUiStateTest {
     }
 
     @Test
+    fun `playlist progress combines queue position with current track fraction`() {
+        assertEquals(0.425f, approximatePlaylistProgress(4, 10, 0.25f)!!, 0.0001f)
+        assertEquals(0f, approximatePlaylistProgress(0, 10, null)!!, 0.0001f)
+        assertEquals(1f, approximatePlaylistProgress(9, 10, 1f)!!, 0.0001f)
+        assertEquals(0.2f, approximatePlaylistProgress(1, 10, 1f)!!, 0.0001f)
+        assertNull(approximatePlaylistProgress(null, 1, 0.5f))
+        assertNull(approximatePlaylistProgress(0, null, 0.5f))
+        assertNull(approximatePlaylistProgress(10, 10, 0.5f))
+    }
+
+    @Test
+    fun `playlist progress reaches mini player from playback state`() {
+        val active = PlaybackState(
+            currentTrackId = "shorts.fifth",
+            currentPlaylistId = "shorts",
+            positionMs = 25_000,
+            durationMs = 100_000,
+            playlistTrackIndex = 4,
+            playlistTrackCount = 10,
+        ).toPlayerUiState() as PlayerUiState.Active
+
+        assertEquals("shorts", active.playlistId)
+        assertEquals(0.425f, active.playlistProgress!!, 0.0001f)
+        assertEquals(0.425f, active.toMiniPlayerUiState()!!.playlistProgress!!, 0.0001f)
+    }
+
+    @Test
     fun `mini player exposes retry state for playback errors`() {
         val miniPlayer = PlaybackState(
             currentTrackId = "track",

@@ -74,6 +74,15 @@ class PlaybackControllerLogicTest {
         )
     }
 
+    @Test
+    fun `restored single item does not expose playlist progress before queue hydration`() {
+        assertEquals(false, isKnownPlaylistQueue(false, false, 1))
+        assertEquals(true, isKnownPlaylistQueue(false, true, 1))
+        assertEquals(true, isKnownPlaylistQueue(true, false, 1))
+        assertEquals(true, isKnownPlaylistQueue(false, false, 10))
+        assertEquals(false, isKnownPlaylistQueue(true, false, 0))
+    }
+
     private fun track(id: String, vararg languages: String) = Track(
         id = id,
         order = 0,

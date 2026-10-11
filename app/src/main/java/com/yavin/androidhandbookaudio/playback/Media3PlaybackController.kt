@@ -49,6 +49,7 @@ class Media3PlaybackController @Inject constructor(
     private var restoredBookmark: PlaybackBookmark? = null
     private var isPersistenceLoaded = false
     private var hasUserRequestedPlayback = false
+    private var hasStartedPlaylistQueue = false
     private var hasHydratedRestoredQueue = false
     private var persistenceJob: Job? = null
     private var lastPeriodicCheckpointPositionMs = 0L
@@ -272,6 +273,7 @@ class Media3PlaybackController @Inject constructor(
         playbackError = null
         controller?.apply {
             checkpointPlayback(this)
+            hasStartedPlaylistQueue = true
             setMediaItems(pending.queue.map(PlaybackQueueItem::toMediaItem), selectedIndex, 0)
             setPlaybackSpeed(restoredBookmark?.playbackSpeed ?: DEFAULT_PLAYBACK_SPEED)
             prepare()
@@ -322,12 +324,18 @@ class Media3PlaybackController @Inject constructor(
     private fun updateState(player: Player?) {
         if (player == null) return
         val currentTrackId = player.currentMediaItem?.mediaId
+        val playlistId = player.currentMediaItem?.mediaMetadata?.extras
+            ?.getString(PLAYLIST_ID_KEY)
+            ?: currentTrackId?.let(playlistIdsByTrackId::get)
+        val hasKnownPlaylistQueue = playlistId != null && isKnownPlaylistQueue(
+            hasStartedPlaylistQueue = hasStartedPlaylistQueue,
+            hasHydratedRestoredQueue = hasHydratedRestoredQueue,
+            mediaItemCount = player.mediaItemCount,
+        )
         _state.value = PlaybackState(
             currentTrackId = currentTrackId,
             currentTitle = player.currentMediaItem?.mediaMetadata?.title?.toString(),
-            currentPlaylistId = player.currentMediaItem?.mediaMetadata?.extras
-                ?.getString(PLAYLIST_ID_KEY)
-                ?: currentTrackId?.let(playlistIdsByTrackId::get),
+            currentPlaylistId = playlistId,
             currentPlaylistTitle = player.currentMediaItem?.mediaMetadata?.albumTitle?.toString(),
             currentLanguage = player.currentMediaItem?.mediaMetadata?.subtitle
                 ?.toString()
@@ -347,6 +355,10 @@ class Media3PlaybackController @Inject constructor(
             isBuffering = player.playbackState == Player.STATE_BUFFERING,
             positionMs = player.currentPosition.coerceAtLeast(0),
             durationMs = player.duration.takeIf { it != C.TIME_UNSET && it >= 0 },
+            playlistTrackIndex = player.currentMediaItemIndex.takeIf {
+                hasKnownPlaylistQueue && it >= 0
+            },
+            playlistTrackCount = player.mediaItemCount.takeIf { hasKnownPlaylistQueue },
             bufferedPositionMs = player.bufferedPosition.coerceAtLeast(0),
             playbackSpeed = player.playbackParameters.speed,
             hasPrevious = player.hasPreviousMediaItem(),
@@ -453,3 +465,10 @@ internal fun shouldHydrateRestoredQueue(
     !hasHydratedQueue &&
     mediaItemCount == 1 &&
     containsCurrentTrack
+
+internal fun isKnownPlaylistQueue(
+    hasStartedPlaylistQueue: Boolean,
+    hasHydratedRestoredQueue: Boolean,
+    mediaItemCount: Int,
+): Boolean = mediaItemCount > 0 &&
+    (mediaItemCount > 1 || hasStartedPlaylistQueue || hasHydratedRestoredQueue)

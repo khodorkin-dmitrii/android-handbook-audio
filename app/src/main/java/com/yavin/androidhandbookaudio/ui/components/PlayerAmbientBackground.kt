@@ -43,12 +43,23 @@ fun PlayerAmbientBackground(
     progress: Float?,
     progressKey: Any? = null,
     isProgressPreview: Boolean = false,
+    playlistProgress: Float? = null,
+    playlistProgressKey: Any? = null,
     modifier: Modifier = Modifier,
 ) {
     Box(
         modifier = modifier.background(MaterialTheme.colorScheme.background),
     ) {
         AmbientBlobBackground(Modifier.fillMaxSize())
+        if (playlistProgress != null) {
+            PerimeterPlaybackProgress(
+                progress = playlistProgress,
+                progressKey = playlistProgressKey,
+                isProgressPreview = isProgressPreview,
+                isPlaylistProgress = true,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
         if (progress != null || progressKey != null) {
             PerimeterPlaybackProgress(
                 progress = progress,
@@ -97,9 +108,11 @@ private fun AmbientBlobBackground(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier.drawWithCache {
             val baseRadius = min(size.width, size.height) * 0.58f
+            val secondaryRadius = baseRadius * 0.92f
+            val tertiaryRadius = baseRadius * 0.86f
             val primaryBrush = ambientBlobBrush(colorScheme.primary, blobAlpha, baseRadius)
-            val secondaryBrush = ambientBlobBrush(colorScheme.secondary, blobAlpha * 0.9f, baseRadius)
-            val tertiaryBrush = ambientBlobBrush(colorScheme.tertiary, blobAlpha * 0.85f, baseRadius)
+            val secondaryBrush = ambientBlobBrush(colorScheme.secondary, blobAlpha * 0.9f, secondaryRadius)
+            val tertiaryBrush = ambientBlobBrush(colorScheme.tertiary, blobAlpha * 0.85f, tertiaryRadius)
 
             onDrawBehind {
                 drawAmbientBlob(
@@ -120,7 +133,7 @@ private fun AmbientBlobBackground(modifier: Modifier = Modifier) {
                 )
                 drawAmbientBlob(
                     brush = secondaryBrush,
-                    radius = baseRadius * 0.92f,
+                    radius = secondaryRadius,
                     center = Offset(
                         x = size.width * (
                             0.77f + 0.11f * cos(secondPhase + 1.9f) +
@@ -136,7 +149,7 @@ private fun AmbientBlobBackground(modifier: Modifier = Modifier) {
                 )
                 drawAmbientBlob(
                     brush = tertiaryBrush,
-                    radius = baseRadius * 0.86f,
+                    radius = tertiaryRadius,
                     center = Offset(
                         x = size.width * (
                             0.42f + 0.15f * cos(thirdPhase + 3.7f) +
@@ -160,6 +173,7 @@ private fun PerimeterPlaybackProgress(
     progress: Float?,
     progressKey: Any?,
     isProgressPreview: Boolean,
+    isPlaylistProgress: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val targetProgress = progress?.coerceIn(0f, 1f)
@@ -182,19 +196,23 @@ private fun PerimeterPlaybackProgress(
     }
     val colorScheme = MaterialTheme.colorScheme
     val isDark = colorScheme.background.luminance() < 0.5f
-    val trailColor = colorScheme.primary.copy(alpha = if (isDark) 0.62f else 0.46f)
-    val trailGlowColor = colorScheme.tertiary.copy(alpha = if (isDark) 0.20f else 0.14f)
-    val headGlowColor = colorScheme.tertiary.copy(alpha = if (isDark) 0.36f else 0.26f)
-    val headColor = colorScheme.primary.copy(alpha = if (isDark) 0.96f else 0.84f)
+    val trailColor = (if (isPlaylistProgress) colorScheme.tertiary else colorScheme.primary)
+        .copy(alpha = if (isDark) 0.62f else 0.46f)
+    val trailGlowColor = (if (isPlaylistProgress) colorScheme.secondary else colorScheme.tertiary)
+        .copy(alpha = if (isDark) 0.20f else 0.14f)
+    val headGlowColor = (if (isPlaylistProgress) colorScheme.secondary else colorScheme.tertiary)
+        .copy(alpha = if (isDark) 0.36f else 0.26f)
+    val headColor = (if (isPlaylistProgress) colorScheme.tertiary else colorScheme.primary)
+        .copy(alpha = if (isDark) 0.96f else 0.84f)
 
     Box(
         modifier = modifier.drawWithCache {
-            val inset = 12.dp.toPx()
-            val cornerRadius = 28.dp.toPx()
-            val trailWidth = 2.5.dp.toPx()
-            val glowWidth = 7.dp.toPx()
-            val headRadius = 3.dp.toPx()
-            val headGlowRadius = 15.dp.toPx()
+            val inset = (if (isPlaylistProgress) 6.dp else 12.dp).toPx()
+            val cornerRadius = (if (isPlaylistProgress) 34.dp else 28.dp).toPx()
+            val trailWidth = (if (isPlaylistProgress) 2.dp else 2.5.dp).toPx()
+            val glowWidth = (if (isPlaylistProgress) 5.dp else 7.dp).toPx()
+            val headRadius = (if (isPlaylistProgress) 2.5.dp else 3.dp).toPx()
+            val headGlowRadius = (if (isPlaylistProgress) 7.dp else 15.dp).toPx()
             val bounds = Rect(
                 left = inset,
                 top = inset,
@@ -373,6 +391,7 @@ private fun PlayerAmbientBackgroundLightPreview() {
     AndroidHandbookAudioTheme(darkTheme = false, dynamicColor = false) {
         PlayerAmbientBackground(
             progress = 0.6f,
+            playlistProgress = 0.86f,
             modifier = Modifier.fillMaxSize(),
         )
     }
@@ -390,6 +409,7 @@ private fun PlayerAmbientBackgroundDarkPreview() {
     AndroidHandbookAudioTheme(darkTheme = true, dynamicColor = false) {
         PlayerAmbientBackground(
             progress = 0.6f,
+            playlistProgress = 0.86f,
             modifier = Modifier.fillMaxSize(),
         )
     }

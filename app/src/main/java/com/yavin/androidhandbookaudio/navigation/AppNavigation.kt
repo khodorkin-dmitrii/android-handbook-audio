@@ -27,6 +27,7 @@ import com.yavin.androidhandbookaudio.ui.playlists.PlaylistsScreen
 import com.yavin.androidhandbookaudio.ui.playlists.PlaylistsViewModel
 import com.yavin.androidhandbookaudio.ui.player.MiniPlayer
 import com.yavin.androidhandbookaudio.ui.player.PlayerScreen
+import com.yavin.androidhandbookaudio.ui.player.PlayerUiState
 import com.yavin.androidhandbookaudio.ui.player.PlayerViewModel
 import com.yavin.androidhandbookaudio.ui.player.toMiniPlayerUiState
 import com.yavin.androidhandbookaudio.ui.tracks.TrackListScreen
@@ -56,6 +57,7 @@ fun AndroidHandbookAudioNavHost(
     val trackListState by trackListViewModel.uiState.collectAsStateWithLifecycle()
     val playerState by playerViewModel.uiState.collectAsStateWithLifecycle()
     val miniPlayerState = playerState.toMiniPlayerUiState()
+    val activePlayerState = playerState as? PlayerUiState.Active
 
     Box(
         modifier = modifier
@@ -66,6 +68,8 @@ fun AndroidHandbookAudioNavHost(
             PlayerAmbientBackground(
                 progress = miniPlayerState?.progress,
                 progressKey = miniPlayerState?.trackId,
+                playlistProgress = miniPlayerState?.playlistProgress,
+                playlistProgressKey = activePlayerState?.playlistId,
                 modifier = Modifier.matchParentSize(),
             )
         }
@@ -117,6 +121,8 @@ fun AndroidHandbookAudioNavHost(
                             onOpenPlayer = { backStack.pushIfNotTop(PlayerKey) },
                             playbackProgress = miniPlayerState?.progress,
                             playbackTrackId = miniPlayerState?.trackId,
+                            playlistProgress = miniPlayerState?.playlistProgress,
+                            playbackPlaylistId = activePlayerState?.playlistId,
                             themeMode = themeMode,
                             onCycleThemeMode = onCycleThemeMode,
                         )

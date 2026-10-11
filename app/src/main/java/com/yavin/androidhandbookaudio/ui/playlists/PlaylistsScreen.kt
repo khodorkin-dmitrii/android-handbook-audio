@@ -29,6 +29,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.yavin.androidhandbookaudio.domain.model.AppThemeMode
+import com.yavin.androidhandbookaudio.ui.components.PlayerAmbientBackground
 import com.yavin.androidhandbookaudio.ui.components.ThemeModeAction
 import com.yavin.androidhandbookaudio.ui.theme.AndroidHandbookAudioTheme
 
@@ -164,26 +165,33 @@ private fun CenteredContent(
 @Composable
 private fun PlaylistsScreenPreview() {
     AndroidHandbookAudioTheme(dynamicColor = false) {
-        PlaylistsScreen(
-            state = PlaylistsUiState.Content(
-                playlists = listOf(
-                    PlaylistUiModel(
-                        id = "shorts",
-                        title = "Short Audio Notes",
-                        languages = listOf("EN", "RU"),
-                    ),
-                    PlaylistUiModel(
-                        id = "deep-dives",
-                        title = "Android Deep Dives",
-                        languages = listOf("EN"),
+        Box(Modifier.fillMaxSize()) {
+            PlayerAmbientBackground(
+                progress = 0.42f,
+                playlistProgress = 0.84f,
+                modifier = Modifier.matchParentSize(),
+            )
+            PlaylistsScreen(
+                state = PlaylistsUiState.Content(
+                    playlists = listOf(
+                        PlaylistUiModel(
+                            id = "shorts",
+                            title = "Short Audio Notes",
+                            languages = listOf("EN", "RU"),
+                        ),
+                        PlaylistUiModel(
+                            id = "deep-dives",
+                            title = "Android Deep Dives",
+                            languages = listOf("EN"),
+                        ),
                     ),
                 ),
-            ),
-            onRetry = {},
-            onPlaylistClick = {},
-            themeMode = AppThemeMode.SYSTEM,
-            onCycleThemeMode = { _ -> },
-        )
+                onRetry = {},
+                onPlaylistClick = {},
+                themeMode = AppThemeMode.SYSTEM,
+                onCycleThemeMode = { _ -> },
+            )
+        }
     }
 }
 

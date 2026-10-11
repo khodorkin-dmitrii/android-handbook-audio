@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +25,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.yavin.androidhandbookaudio.R
+import com.yavin.androidhandbookaudio.ui.components.GradientFilledIconButton
 import com.yavin.androidhandbookaudio.ui.theme.AndroidHandbookAudioTheme
 
 @Composable
@@ -90,9 +90,10 @@ fun MiniPlayer(
                         maxLines = 1,
                     )
                 }
-                FilledIconButton(
+                GradientFilledIconButton(
                     onClick = onPlayOrPause,
                     enabled = !state.isBuffering,
+                    animateGradient = state.isPlaying,
                 ) {
                     if (state.isBuffering) {
                         CircularProgressIndicator(

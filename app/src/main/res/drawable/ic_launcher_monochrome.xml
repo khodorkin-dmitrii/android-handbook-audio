@@ -7,10 +7,19 @@
     <group
         android:translateX="7"
         android:translateY="6.6">
-        <group android:translateY="2.44">
+        <group
+            android:pivotX="12"
+            android:pivotY="12.83"
+            android:scaleX="0.88"
+            android:scaleY="0.88"
+            android:translateY="2.44">
             <path
-                android:fillColor="#FFFFFFFF"
-                android:pathData="M12,9.1C9.64,6.91 6.5,5.56 3,5.56v11c3.5,0 6.64,1.35 9,3.54c2.36,-2.19 5.5,-3.54 9,-3.54v-11c-3.5,0 -6.64,1.35 -9,3.54" />
+                android:fillColor="#00000000"
+                android:pathData="M12,9.1C9.64,6.91 6.5,5.56 3,5.56v11c3.5,0 6.64,1.35 9,3.54c2.36,-2.19 5.5,-3.54 9,-3.54"
+                android:strokeColor="#FFFFFFFF"
+                android:strokeLineCap="round"
+                android:strokeLineJoin="round"
+                android:strokeWidth="1.2" />
         </group>
         <path
             android:fillColor="#FFFFFFFF"

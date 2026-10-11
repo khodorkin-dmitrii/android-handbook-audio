@@ -1,9 +1,13 @@
 package com.yavin.androidhandbookaudio.ui.player
 
 import android.content.res.Configuration
+import android.os.SystemClock
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -13,6 +17,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,7 +36,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,14 +54,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
@@ -74,9 +83,12 @@ import com.yavin.androidhandbookaudio.domain.model.TranscriptSegment
 import com.yavin.androidhandbookaudio.domain.model.TranscriptStyleRange
 import com.yavin.androidhandbookaudio.domain.model.TranscriptTextStyle
 import com.yavin.androidhandbookaudio.ui.components.PlayerAmbientBackground
+import com.yavin.androidhandbookaudio.ui.components.GradientFilledIconButton
 import com.yavin.androidhandbookaudio.ui.components.ThemeModeAction
 import com.yavin.androidhandbookaudio.ui.theme.AndroidHandbookAudioTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -119,6 +131,14 @@ fun PlayerScreen(
             progress = seekPreviewProgress ?: playbackProgress,
             progressKey = activeState?.trackId,
             isProgressPreview = seekPreviewProgress != null,
+            playlistProgress = activeState?.let { active ->
+                if (seekPreviewProgress == null) active.playlistProgress else approximatePlaylistProgress(
+                    active.playlistTrackIndex,
+                    active.playlistTrackCount,
+                    seekPreviewProgress,
+                )
+            },
+            playlistProgressKey = activeState?.playlistId,
             modifier = Modifier.matchParentSize(),
         )
         Scaffold(
@@ -439,9 +459,10 @@ private fun PlayerControls(
                     contentDescription = "Seek backward 10 seconds",
                 )
             }
-            FilledIconButton(
+            GradientFilledIconButton(
                 onClick = onPlayOrPause,
                 modifier = Modifier.size(64.dp),
+                animateGradient = state.status == PlayerStatus.PLAYING,
             ) {
                 AnimatedContent(
                     targetState = state.status.toPrimaryPlaybackIcon(),
@@ -559,52 +580,136 @@ private fun TranscriptPanel(
         label = "Transcript availability",
     )
     val listState = rememberLazyListState()
-    LaunchedEffect(content?.activeSegmentIndex) {
+    val isAutoFollowPaused = remember(trackId) { mutableStateOf(false) }
+    val lastManualScrollAt = remember(trackId) { mutableLongStateOf(0L) }
+    val manualScrollObserver = remember(trackId) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source == NestedScrollSource.UserInput && available.y != 0f) {
+                    lastManualScrollAt.longValue = SystemClock.uptimeMillis()
+                    isAutoFollowPaused.value = true
+                }
+                return Offset.Zero
+            }
+        }
+    }
+    LaunchedEffect(trackId, isAutoFollowPaused.value) {
+        if (!isAutoFollowPaused.value) return@LaunchedEffect
+        while (isAutoFollowPaused.value) {
+            val now = SystemClock.uptimeMillis()
+            val remaining = TRANSCRIPT_FOLLOW_PAUSE_MS -
+                (now - lastManualScrollAt.longValue)
+            if (canResumeTranscriptFollowing(
+                    now,
+                    lastManualScrollAt.longValue,
+                    listState.isScrollInProgress,
+                )
+            ) {
+                isAutoFollowPaused.value = false
+            } else {
+                delay(remaining.coerceAtLeast(100))
+            }
+        }
+    }
+    LaunchedEffect(
+        trackId,
+        content?.segments,
+        content?.activeSegmentIndex,
+        isAutoFollowPaused.value,
+    ) {
         val activeIndex = content?.activeSegmentIndex ?: return@LaunchedEffect
-        if (!listState.isScrollInProgress) {
-            listState.animateScrollToItem((activeIndex - 2).coerceAtLeast(0))
+        if (isAutoFollowPaused.value) return@LaunchedEffect
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.isNotEmpty() }.first { it }
+        repeat(TRANSCRIPT_FOLLOW_MAX_PASSES) { pass ->
+            val layoutInfo = listState.layoutInfo
+            val viewportCenter = (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2f
+            val visibleCues = layoutInfo.visibleItemsInfo.map { item ->
+                TranscriptCuePosition(item.index, item.offset, item.size)
+            }
+            val activeCue = visibleCues.firstOrNull { it.index == activeIndex }
+            if (activeCue != null && !isOutsideTranscriptFollowBand(
+                    activeCue.center,
+                    layoutInfo.viewportStartOffset,
+                    layoutInfo.viewportEndOffset,
+                )
+            ) return@LaunchedEffect
+
+            val distance = estimateTranscriptScrollDistance(
+                activeIndex = activeIndex,
+                visibleCues = visibleCues,
+                itemSpacing = layoutInfo.mainAxisItemSpacing,
+                viewportCenter = viewportCenter,
+            ) ?: return@LaunchedEffect
+            if ((distance > 0 && !listState.canScrollForward) ||
+                (distance < 0 && !listState.canScrollBackward)
+            ) return@LaunchedEffect
+
+            val consumed = listState.animateScrollBy(
+                distance,
+                animationSpec = tween(
+                    durationMillis = if (pass == 0) {
+                        TRANSCRIPT_FOLLOW_ANIMATION_MS
+                    } else {
+                        TRANSCRIPT_FOLLOW_CORRECTION_MS
+                    },
+                    easing = FastOutSlowInEasing,
+                ),
+            )
+            if (abs(consumed) < 1f) return@LaunchedEffect
         }
     }
 
-    Box(modifier = modifier.fillMaxWidth()) {
-        if (segments != null) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize().alpha(transcriptAlpha),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                    horizontal = 18.dp,
-                    vertical = 8.dp,
-                ),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                itemsIndexed(
-                    items = segments,
-                    key = { index, _ -> index },
-                ) { index, segment ->
-                    val isActive = index == content?.activeSegmentIndex
-                    val styledText = remember(segment) { segment.toAnnotatedString() }
-                    AnimatedContent(
-                        targetState = styledText,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(enabled = content != null) {
-                                onSegmentClick(segment.startMs)
-                            }
-                            .padding(vertical = 4.dp),
-                        transitionSpec = {
-                            fadeIn(tween(240)) togetherWith fadeOut(tween(160))
-                        },
-                        label = "Transcript cue text",
-                    ) { text ->
-                        Text(
-                            text = text,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = if (isActive) {
+    Box(modifier = modifier.fillMaxWidth().nestedScroll(manualScrollObserver)) {
+        AnimatedVisibility(
+            visible = segments != null,
+            enter = fadeIn(tween(320)),
+            exit = fadeOut(tween(0)),
+            modifier = Modifier.fillMaxSize().alpha(transcriptAlpha),
+        ) {
+            segments?.let { visibleSegments ->
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        horizontal = 18.dp,
+                        vertical = 8.dp,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    itemsIndexed(
+                        items = visibleSegments,
+                        key = { index, _ -> index },
+                    ) { index, segment ->
+                        val isActive = index == content?.activeSegmentIndex
+                        val styledText = remember(segment) { segment.toAnnotatedString() }
+                        val cueColor by animateColorAsState(
+                            targetValue = if (isActive) {
                                 MaterialTheme.colorScheme.primary
                             } else {
                                 MaterialTheme.colorScheme.onSurfaceVariant
                             },
+                            animationSpec = tween(220),
+                            label = "Transcript cue highlight",
                         )
+                        AnimatedContent(
+                            targetState = styledText,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = content != null) {
+                                    onSegmentClick(segment.startMs)
+                                }
+                                .padding(vertical = 4.dp),
+                            transitionSpec = {
+                                fadeIn(tween(240)) togetherWith fadeOut(tween(160))
+                            },
+                            label = "Transcript cue text",
+                        ) { text ->
+                            Text(
+                                text = text,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = cueColor,
+                            )
+                        }
                     }
                 }
             }
@@ -622,6 +727,54 @@ private fun TranscriptPanel(
         }
     }
 }
+
+internal fun isOutsideTranscriptFollowBand(
+    itemCenter: Float,
+    viewportStart: Int,
+    viewportEnd: Int,
+): Boolean {
+    val viewportHeight = viewportEnd - viewportStart
+    if (viewportHeight <= 0) return false
+    val upperBound = viewportStart + viewportHeight * 0.25f
+    val lowerBound = viewportStart + viewportHeight * 0.75f
+    return itemCenter < upperBound || itemCenter > lowerBound
+}
+
+internal data class TranscriptCuePosition(
+    val index: Int,
+    val offset: Int,
+    val size: Int,
+) {
+    val center: Float get() = offset + size / 2f
+}
+
+internal fun estimateTranscriptScrollDistance(
+    activeIndex: Int,
+    visibleCues: List<TranscriptCuePosition>,
+    itemSpacing: Int,
+    viewportCenter: Float,
+): Float? {
+    val first = visibleCues.firstOrNull() ?: return null
+    val last = visibleCues.last()
+    val anchor = if (activeIndex > last.index) last else first
+    val averageStride = if (last.index > first.index) {
+        (last.center - first.center) / (last.index - first.index)
+    } else {
+        (first.size + itemSpacing).toFloat()
+    }
+    return anchor.center + (activeIndex - anchor.index) * averageStride - viewportCenter
+}
+
+internal fun canResumeTranscriptFollowing(
+    nowMs: Long,
+    lastManualScrollAtMs: Long,
+    isScrollInProgress: Boolean,
+): Boolean = nowMs - lastManualScrollAtMs >= TRANSCRIPT_FOLLOW_PAUSE_MS && !isScrollInProgress
+
+internal const val TRANSCRIPT_FOLLOW_PAUSE_MS = 10_000L
+private const val TRANSCRIPT_FOLLOW_ANIMATION_MS = 1_650
+private const val TRANSCRIPT_FOLLOW_CORRECTION_MS = 320
+private const val TRANSCRIPT_FOLLOW_MAX_PASSES = 3
 
 internal fun TranscriptSegment.toAnnotatedString(): AnnotatedString = buildAnnotatedString {
     append(text)
@@ -768,6 +921,9 @@ private fun previewPlayerState(
     trackId = "shorts.libraries-build",
     title = "Libraries & Build",
     playlistTitle = "Short Audio Notes",
+    playlistId = "shorts",
+    playlistTrackIndex = 8,
+    playlistTrackCount = 10,
     language = "en",
     preferredLanguage = "en",
     availableLanguages = listOf("en", "ru"),

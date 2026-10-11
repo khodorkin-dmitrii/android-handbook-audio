@@ -25,7 +25,7 @@ fun ThemeModeAction(
             buttonCenter = coordinates.boundsInRoot().center
         },
     ) {
-        Text(themeMode.label)
+        Text("${themeMode.label} theme")
     }
 }
 

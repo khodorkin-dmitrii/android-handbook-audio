@@ -25,7 +25,19 @@ sealed interface PlayerUiState {
         val errorMessage: String?,
         val transcript: TranscriptUiState = TranscriptUiState.Unavailable,
         val hasTranscriptPanel: Boolean = transcript !is TranscriptUiState.Unavailable,
-    ) : PlayerUiState
+        val playlistId: String? = null,
+        val playlistTrackIndex: Int? = null,
+        val playlistTrackCount: Int? = null,
+    ) : PlayerUiState {
+        val playlistProgress: Float?
+            get() = approximatePlaylistProgress(
+                playlistTrackIndex,
+                playlistTrackCount,
+                durationMs?.takeIf { it > 0 }?.let { duration ->
+                    positionMs.toFloat() / duration
+                },
+            )
+    }
 }
 
 sealed interface TranscriptUiState {
@@ -58,6 +70,7 @@ data class MiniPlayerUiState(
     val isBuffering: Boolean,
     val hasError: Boolean,
     val progress: Float?,
+    val playlistProgress: Float? = null,
     val positionMs: Long? = null,
     val durationMs: Long? = null,
 )
@@ -93,7 +106,22 @@ fun PlaybackState.toPlayerUiState(
         errorMessage = error,
         transcript = transcript,
         hasTranscriptPanel = hasTimedTranscript || transcript !is TranscriptUiState.Unavailable,
+        playlistId = currentPlaylistId,
+        playlistTrackIndex = playlistTrackIndex,
+        playlistTrackCount = playlistTrackCount,
     )
+}
+
+fun approximatePlaylistProgress(
+    trackIndex: Int?,
+    trackCount: Int?,
+    trackProgress: Float?,
+): Float? {
+    if (trackIndex == null || trackCount == null || trackCount <= 0 || trackIndex !in 0 until trackCount) {
+        return null
+    }
+    return ((trackIndex + (trackProgress ?: 0f).coerceIn(0f, 1f)) / trackCount)
+        .coerceIn(0f, 1f)
 }
 
 fun PlaybackState.toTimedTranscriptSourceOrNull(): TimedTranscriptSource? {
@@ -145,6 +173,7 @@ fun PlayerUiState.toMiniPlayerUiState(): MiniPlayerUiState? {
         isBuffering = active.status == PlayerStatus.BUFFERING,
         hasError = active.status == PlayerStatus.ERROR,
         progress = progress,
+        playlistProgress = active.playlistProgress,
         positionMs = active.positionMs,
         durationMs = active.durationMs,
     )

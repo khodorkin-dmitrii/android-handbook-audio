@@ -17,6 +17,8 @@ data class PlaybackState(
     val isBuffering: Boolean = false,
     val positionMs: Long = 0,
     val durationMs: Long? = null,
+    val playlistTrackIndex: Int? = null,
+    val playlistTrackCount: Int? = null,
     val bufferedPositionMs: Long = 0,
     val playbackSpeed: Float = 1f,
     val hasPrevious: Boolean = false,

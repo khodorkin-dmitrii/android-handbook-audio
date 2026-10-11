@@ -18,7 +18,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -44,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.yavin.androidhandbookaudio.R
 import com.yavin.androidhandbookaudio.domain.model.AppThemeMode
+import com.yavin.androidhandbookaudio.ui.components.GradientFilledIconButton
 import com.yavin.androidhandbookaudio.ui.components.PlayerAmbientBackground
 import com.yavin.androidhandbookaudio.ui.components.ThemeModeAction
 import com.yavin.androidhandbookaudio.ui.player.formatPlaybackTime
@@ -60,6 +60,8 @@ fun TrackListScreen(
     onOpenPlayer: () -> Unit,
     playbackProgress: Float? = null,
     playbackTrackId: String? = null,
+    playlistProgress: Float? = null,
+    playbackPlaylistId: String? = null,
     themeMode: AppThemeMode,
     onCycleThemeMode: (Offset) -> Unit,
     modifier: Modifier = Modifier,
@@ -69,6 +71,8 @@ fun TrackListScreen(
         PlayerAmbientBackground(
             progress = playbackProgress,
             progressKey = playbackTrackId,
+            playlistProgress = playlistProgress,
+            playlistProgressKey = playbackPlaylistId,
             modifier = Modifier.matchParentSize(),
         )
         Scaffold(
@@ -226,7 +230,7 @@ private fun TrackCard(
                     maxLines = 1,
                 )
             }
-            FilledIconButton(
+            GradientFilledIconButton(
                 onClick = {
                     dispatchTrackItemClick(
                         target = TrackItemClickTarget.PLAYBACK_CONTROL,
@@ -237,6 +241,7 @@ private fun TrackCard(
                     )
                 },
                 enabled = track.playbackStatus != TrackPlaybackStatus.BUFFERING,
+                animateGradient = track.playbackStatus == TrackPlaybackStatus.PLAYING,
             ) {
                 when (track.playbackStatus) {
                     TrackPlaybackStatus.BUFFERING -> CircularProgressIndicator(
@@ -325,6 +330,10 @@ private fun TrackListScreenPreview() {
             onRetry = {},
             onPlayOrPause = {},
             onOpenPlayer = {},
+            playbackProgress = 78_000f / 184_000f,
+            playbackTrackId = "shorts.kotlin",
+            playlistProgress = (1f + 78_000f / 184_000f) / previewTrackListState.tracks.size,
+            playbackPlaylistId = "shorts",
             themeMode = AppThemeMode.SYSTEM,
             onCycleThemeMode = { _ -> },
         )
